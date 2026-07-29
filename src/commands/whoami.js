@@ -31,17 +31,20 @@ function renderWhoami ({ profile, tokenExpMs, viaEnv }) {
   }
 }
 
+async function handle (argv, context, d) {
+  try {
+    const result = await doWhoami(argv, d)
+    output(argv, result.profile, () => renderWhoami(result))
+  } catch (err) {
+    return context.cliMessage(err.message)
+  }
+}
+
 module.exports = {
   flags: 'whoami',
   desc: 'Show the currently authenticated user',
-  run: async (argv, context) => {
-    try {
-      const result = await doWhoami(argv, deps())
-      output(argv, result.profile, () => renderWhoami(result))
-    } catch (err) {
-      return context.cliMessage(err.message)
-    }
-  },
+  run: (argv, context) => handle(argv, context, deps()),
+  handle,
   doWhoami,
   renderWhoami
 }

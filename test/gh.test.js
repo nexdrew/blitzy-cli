@@ -1,7 +1,16 @@
 'use strict'
 
 const { test, expect } = require('bun:test')
-const { createGh, parseSubmodulePrs, repoFromPrUrl } = require('../src/gh')
+const { createGh, parseSubmodulePrs, repoFromPrUrl, runGh } = require('../src/gh')
+
+test('runGh resolves stdout for a working binary', async () => {
+  const out = await runGh(['--version'], { bin: process.execPath })
+  expect(out).toMatch(/\d+\.\d+/)
+})
+
+test('runGh rejects when the binary is missing', async () => {
+  await expect(runGh(['whatever'], { bin: 'blitzy-nonexistent-binary-xyz-123' })).rejects.toBeDefined()
+})
 
 test('parseSubmodulePrs extracts submodule PRs from a body', () => {
   const body = [

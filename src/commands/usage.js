@@ -32,17 +32,20 @@ function renderUsage ({ usage: u }) {
   if (typeof u.chatMessages === 'number') console.log(`${'Chat messages'.padEnd(18)}${num(u.chatMessages)}`)
 }
 
+async function handle (argv, context, d) {
+  try {
+    const result = await doUsage(argv, d)
+    output(argv, result.usage, () => renderUsage(result))
+  } catch (err) {
+    return context.cliMessage(err.message)
+  }
+}
+
 module.exports = {
   flags: 'usage',
   desc: 'Show subscription usage against quota',
-  run: async (argv, context) => {
-    try {
-      const result = await doUsage(argv, deps())
-      output(argv, result.usage, () => renderUsage(result))
-    } catch (err) {
-      return context.cliMessage(err.message)
-    }
-  },
+  run: (argv, context) => handle(argv, context, deps()),
+  handle,
   doUsage,
   renderUsage
 }

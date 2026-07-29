@@ -57,6 +57,15 @@ function renderLogin ({ profile }) {
   console.log(`Logged in as ${who}${at}.`)
 }
 
+async function handle (argv, context, d) {
+  try {
+    const result = await doLogin(argv, d)
+    output(argv, result.profile, () => renderLogin(result))
+  } catch (err) {
+    return context.cliMessage(err.message)
+  }
+}
+
 module.exports = {
   flags: 'login',
   desc: 'Authenticate with Blitzy and store credentials',
@@ -65,14 +74,8 @@ module.exports = {
       .string('--email <email>', { desc: 'Work email (skips the prompt)' })
       .string('--token <token>', { desc: 'Use a WorkOS access token instead of email/password' })
   },
-  run: async (argv, context) => {
-    try {
-      const result = await doLogin(argv, deps())
-      output(argv, result.profile, () => renderLogin(result))
-    } catch (err) {
-      return context.cliMessage(err.message)
-    }
-  },
+  run: (argv, context) => handle(argv, context, deps()),
+  handle,
   doLogin,
   renderLogin
 }

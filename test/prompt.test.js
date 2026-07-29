@@ -2,7 +2,16 @@
 
 const { test, expect } = require('bun:test')
 const { EventEmitter } = require('node:events')
-const { promptHidden } = require('../src/prompt')
+const { PassThrough } = require('node:stream')
+const { promptHidden, promptLine } = require('../src/prompt')
+
+test('promptLine returns the trimmed typed line', async () => {
+  const input = new PassThrough()
+  const output = new PassThrough()
+  const p = promptLine('Name: ', { input, output })
+  input.write('  Alice  \n')
+  expect(await p).toBe('Alice')
+})
 
 const DEL = String.fromCharCode(127)
 

@@ -46,6 +46,19 @@ function renderDetail ({ env: e }) {
   if (e.instructions) console.log('\n' + String(e.instructions).trimEnd())
 }
 
+async function handle (argv, context, d) {
+  try {
+    const result = await doEnvs(argv, d)
+    if (result.mode === 'detail') {
+      output(argv, result.env, () => renderDetail(result))
+    } else {
+      output(argv, result.result, () => renderList(result))
+    }
+  } catch (err) {
+    return context.cliMessage(err.message)
+  }
+}
+
 module.exports = {
   flags: 'envs [uuid]',
   // aliases: ['env', 'environments'],
@@ -53,18 +66,8 @@ module.exports = {
   hints: '',
   desc: 'List environments, or show one environment (with its setup instructions) by uuid',
   paramsDesc: 'Optional environment uuid to show details for',
-  run: async (argv, context) => {
-    try {
-      const result = await doEnvs(argv, deps())
-      if (result.mode === 'detail') {
-        output(argv, result.env, () => renderDetail(result))
-      } else {
-        output(argv, result.result, () => renderList(result))
-      }
-    } catch (err) {
-      return context.cliMessage(err.message)
-    }
-  },
+  run: (argv, context) => handle(argv, context, deps()),
+  handle,
   doEnvs,
   renderList,
   renderDetail

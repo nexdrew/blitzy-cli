@@ -22,8 +22,14 @@ jobs:
       - name: Lint
         run: bun run lint
 
-      - name: Test
-        run: bun test
+      # bun's bunfig coverageThreshold doesn't fail the run, so gate on the
+      # parsed line-coverage of the "All files" row instead (version-independent).
+      - name: Test (coverage gate >= 95% lines)
+        run: |
+          bun test --coverage 2>&1 | tee /tmp/coverage.txt
+          line=$(awk -F'|' '/^All files/ { gsub(/[ %]/,"",$3); print $3 }' /tmp/coverage.txt)
+          echo "Line coverage: ${line}%"
+          awk -v c="${line:-0}" 'BEGIN { if (c+0 < 95) { print "::error::Line coverage " c "% is below the 95% gate"; exit 1 } }'
 
       - name: Build
         run: bun run build
