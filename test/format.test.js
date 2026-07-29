@@ -1,7 +1,25 @@
 'use strict'
 
 const { test, expect } = require('bun:test')
-const { relTime, pct, table, toMs } = require('../src/format')
+const { output, relTime, relTimeIso, pct, table, toMs } = require('../src/format')
+const { captureLog } = require('./helpers')
+
+test('output emits JSON when argv.json, else calls the human renderer', async () => {
+  const jsonOut = await captureLog(() => output({ json: true }, { a: 1 }, () => { throw new Error('should not render') }))
+  expect(JSON.parse(jsonOut)).toEqual({ a: 1 })
+
+  let rendered = false
+  const humanOut = await captureLog(() => output({}, { a: 1 }, () => { rendered = true; console.log('human') }))
+  expect(rendered).toBe(true)
+  expect(humanOut).toContain('human')
+})
+
+test('relTimeIso parses ISO strings and rejects junk', () => {
+  const twoHoursAgo = new Date(Date.now() - 2 * 3600e3).toISOString()
+  expect(relTimeIso(twoHoursAgo)).toBe('2 hours ago')
+  expect(relTimeIso('not-a-date')).toBe('-')
+  expect(relTimeIso(null)).toBe('-')
+})
 
 test('toMs handles integer and float epoch seconds', () => {
   expect(toMs(1780506508)).toBe(1780506508000)

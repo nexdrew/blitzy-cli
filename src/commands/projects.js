@@ -168,6 +168,20 @@ function renderDetail ({ project: p, repos, runs, prs, ghUsed }) {
   line('Updated', relTime(p.updatedAt))
 }
 
+async function handle (argv, context, d) {
+  try {
+    const result = await doProjects(argv, d)
+    if (result.mode === 'detail') {
+      const json = { ...result.project, repos: result.repos, prs: result.prs }
+      output(argv, json, () => renderDetail(result))
+    } else {
+      output(argv, result.result, () => renderList(result))
+    }
+  } catch (err) {
+    return context.cliMessage(err.message)
+  }
+}
+
 module.exports = {
   flags: 'projects [uuid]',
   aliases: 'project',
@@ -182,19 +196,8 @@ module.exports = {
       .string('--sort <field>', { desc: 'Sort field', defaultValue: '-updatedAt' })
       .boolean('--no-gh', { desc: 'Do not use the gh CLI to look up submodule PRs' })
   },
-  run: async (argv, context) => {
-    try {
-      const result = await doProjects(argv, deps())
-      if (result.mode === 'detail') {
-        const json = { ...result.project, repos: result.repos, prs: result.prs }
-        output(argv, json, () => renderDetail(result))
-      } else {
-        output(argv, result.result, () => renderList(result))
-      }
-    } catch (err) {
-      return context.cliMessage(err.message)
-    }
-  },
+  run: (argv, context) => handle(argv, context, deps()),
+  handle,
   doProjects,
   renderList,
   renderDetail,

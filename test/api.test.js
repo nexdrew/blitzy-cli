@@ -3,7 +3,7 @@
 const { test, expect } = require('bun:test')
 const { BlitzyApi, BlitzyApiError, mapLimit } = require('../src/api')
 const { Store } = require('../src/store')
-const { MemBacking, stubClient, routeClient, makeJwt } = require('./helpers')
+const { MemBacking, stubClient, routeClient, makeJwt, makeResponse } = require('./helpers')
 
 const profile = require('./fixtures/profile.json')
 const projectsList = require('./fixtures/projects-list.json')
@@ -20,6 +20,23 @@ function apiWith (routes, { store, env } = {}) {
 test('request throws BlitzyApiError with server message on 4xx', async () => {
   const { api } = apiWith({ 'GET /auth/identify': { status: 401, body: { message: 'Jwt is missing', code: 401 } } })
   await expect(api.identify('a@b.com')).rejects.toThrow('Jwt is missing')
+})
+
+test('request wraps a transport failure as a network BlitzyApiError', async () => {
+  const client = { fetch: () => Promise.reject(new Error('ECONNREFUSED')) }
+  const api = new BlitzyApi({ client, env: {} })
+  await expect(api.identify('a@b.com')).rejects.toThrow(/Network error: ECONNREFUSED/)
+})
+
+test('downloadDocument wraps a transport failure as a network error', async () => {
+  const client = {
+    fetch: (url) => url.includes('/auth')
+      ? Promise.resolve(makeResponse(200, { access_token: futureJwt() }))
+      : Promise.reject(new Error('ECONNRESET'))
+  }
+  const store = new Store(new MemBacking({ workosToken: 'wtok' }))
+  const api = new BlitzyApi({ client, store, env: {} })
+  await expect(api.downloadDocument('pid', 'project_guide', 'md')).rejects.toThrow(/Network error/)
 })
 
 test('request surfaces a Cloudflare challenge distinctly', async () => {

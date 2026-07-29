@@ -41,3 +41,14 @@ test('clear() wipes everything', () => {
   store.clear()
   expect(store.all()).toEqual({})
 })
+
+test('path exposes the backing store path', () => {
+  const store = new Store(new MemBacking())
+  expect(store.path).toBe('/dev/null')
+})
+
+test('set() writes an arbitrary key', () => {
+  const store = new Store(new MemBacking())
+  store.set('email', 'x@y.com')
+  expect(store.get('email')).toBe('x@y.com')
+})

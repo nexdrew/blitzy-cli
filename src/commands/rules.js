@@ -37,24 +37,27 @@ function renderDetail ({ rule: r }) {
   if (r.content) console.log('\n' + String(r.content).trimEnd())
 }
 
+async function handle (argv, context, d) {
+  try {
+    const result = await doRules(argv, d)
+    if (result.mode === 'detail') {
+      output(argv, result.rule, () => renderDetail(result))
+    } else {
+      output(argv, result.result, () => renderList(result))
+    }
+  } catch (err) {
+    return context.cliMessage(err.message)
+  }
+}
+
 module.exports = {
   flags: 'rules [uuid]',
   aliases: 'rule',
   hints: '',
   desc: 'List reusable rules, or show one rule (with its full content) by uuid',
   paramsDesc: 'Optional rule uuid to show details for',
-  run: async (argv, context) => {
-    try {
-      const result = await doRules(argv, deps())
-      if (result.mode === 'detail') {
-        output(argv, result.rule, () => renderDetail(result))
-      } else {
-        output(argv, result.result, () => renderList(result))
-      }
-    } catch (err) {
-      return context.cliMessage(err.message)
-    }
-  },
+  run: (argv, context) => handle(argv, context, deps()),
+  handle,
   doRules,
   renderList,
   renderDetail

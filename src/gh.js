@@ -4,10 +4,10 @@ const { execFile } = require('node:child_process')
 
 // Run the gh CLI, resolving stdout. Rejects on non-zero exit, missing binary,
 // or timeout — callers are expected to treat any rejection as "gh unavailable
-// for this lookup" and degrade gracefully.
-function runGh (args, { timeout = 15000 } = {}) {
+// for this lookup" and degrade gracefully. `bin` is injectable for testing.
+function runGh (args, { timeout = 15000, bin = 'gh' } = {}) {
   return new Promise((resolve, reject) => {
-    execFile('gh', args, { timeout, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile(bin, args, { timeout, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         err.stderr = stderr
         return reject(err)

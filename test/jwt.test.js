@@ -15,6 +15,11 @@ test('decodeJwt returns null for junk', () => {
   expect(decodeJwt(123)).toBeNull()
 })
 
+test('decodeJwt returns null when the payload is not valid JSON', () => {
+  // middle segment decodes to the string "notjson", which JSON.parse rejects
+  expect(decodeJwt('a.bm90anNvbg.c')).toBeNull()
+})
+
 test('jwtExpMs converts exp seconds to ms', () => {
   expect(jwtExpMs(makeJwt({ exp: 1785169165 }))).toBe(1785169165000)
 })

@@ -45,7 +45,7 @@ function selectedKeys (argv) {
   return ORDER.filter((k) => keys.includes(k))
 }
 
-async function doDownload (argv, { api }, io = defaultIo) {
+async function doDownload (argv, { api, io = defaultIo }) {
   const id = argv.uuid
   const keys = selectedKeys(argv)
 
@@ -105,6 +105,25 @@ function renderDownload (result) {
   console.log(formatDownload(result))
 }
 
+async function handle (argv, context, d) {
+  try {
+    const result = await doDownload(argv, d)
+    if (argv.json) {
+      // Machine-readable path: emit the structure and exit 0; a consumer checks
+      // `saved`/`skipped` rather than the exit code.
+      console.log(JSON.stringify(result, null, 2))
+      return
+    }
+    const text = formatDownload(result)
+    // If nothing was downloaded, report via cliMessage so the CLI exits non-zero
+    // (useful for `download ... && next-step`); otherwise print normally (exit 0).
+    if (result.saved.length === 0) return context.cliMessage('%s', text)
+    console.log(text)
+  } catch (err) {
+    return context.cliMessage(err.message)
+  }
+}
+
 module.exports = {
   flags: 'download <uuid>',
   desc: 'Download generated project artifacts (AAP, Project Guide, tech spec, build prompt)',
@@ -118,24 +137,8 @@ module.exports = {
       .boolean('--all', { desc: 'All available artifacts (the default when no artifact flag is given)' })
       .string('--out <dir>', { desc: 'Output directory (default: ./<project-slug>-<id>)' })
   },
-  run: async (argv, context) => {
-    try {
-      const result = await doDownload(argv, deps())
-      if (argv.json) {
-        // Machine-readable path: emit the structure and exit 0; a consumer checks
-        // `saved`/`skipped` rather than the exit code.
-        console.log(JSON.stringify(result, null, 2))
-        return
-      }
-      const text = formatDownload(result)
-      // If nothing was downloaded, report via cliMessage so the CLI exits non-zero
-      // (useful for `download ... && next-step`); otherwise print normally (exit 0).
-      if (result.saved.length === 0) return context.cliMessage('%s', text)
-      console.log(text)
-    } catch (err) {
-      return context.cliMessage(err.message)
-    }
-  },
+  run: (argv, context) => handle(argv, context, deps()),
+  handle,
   doDownload,
   renderDownload,
   formatDownload,

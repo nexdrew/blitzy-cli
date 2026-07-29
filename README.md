@@ -194,10 +194,11 @@ There are two ways to ship this CLI, and they get `impit` to the user differentl
 
 ```sh
 bun install
-bun test          # unit tests, no network or credentials required
-bun run lint      # standard
-bun run build     # bundle to dist/cli.js (Node-compatible; impit stays external)
-bun run compile   # standalone binary for the current platform -> dist/blitzy
+bun test             # unit tests, no network or credentials required
+bun test --coverage  # with coverage (CI gates at >= 95% line coverage)
+bun run lint         # standard
+bun run build        # bundle to dist/cli.js (Node-compatible; impit stays external)
+bun run compile      # standalone binary for the current platform -> dist/blitzy
 ```
 
 ## Releasing

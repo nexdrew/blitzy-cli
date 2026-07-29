@@ -53,7 +53,7 @@ test('slugify and stamp', () => {
 test('download --aap writes one timestamped file to the default slug dir', async () => {
   const api = fakeApi({ docs: { target_tech_spec: '# Agent Action Plan\n' } })
   const io = fakeIo()
-  const result = await download.doDownload({ uuid: '52dbb20e-5ec6-40a4-b687-82f06115e63e', aap: true }, { api }, io)
+  const result = await download.doDownload({ uuid: '52dbb20e-5ec6-40a4-b687-82f06115e63e', aap: true }, { api, io })
 
   expect(result.dir).toBe('/work/aloradl-native-port-52dbb20e')
   expect(io.dirs).toContain('/work/aloradl-native-port-52dbb20e')
@@ -66,7 +66,7 @@ test('download --aap writes one timestamped file to the default slug dir', async
 test('download --out overrides the directory', async () => {
   const api = fakeApi({ docs: { project_guide: '# Guide\n' } })
   const io = fakeIo()
-  const result = await download.doDownload({ uuid: 'abc12345-0000-0000-0000-000000000000', guide: true, out: 'docs/here' }, { api }, io)
+  const result = await download.doDownload({ uuid: 'abc12345-0000-0000-0000-000000000000', guide: true, out: 'docs/here' }, { api, io })
   expect(result.dir).toBe('/work/docs/here')
   expect(Object.keys(io.files)).toEqual(['/work/docs/here/project_guide_20260729_1441.md'])
 })
@@ -75,7 +75,7 @@ test('download reports unavailable artifacts but still saves the rest', async ()
   // tech spec exists; AAP and guide do not (404)
   const api = fakeApi({ docs: { tech_spec: 'SPEC' } })
   const io = fakeIo()
-  const result = await download.doDownload({ uuid: '52dbb20e-5ec6-40a4-b687-82f06115e63e' }, { api }, io) // default: all
+  const result = await download.doDownload({ uuid: '52dbb20e-5ec6-40a4-b687-82f06115e63e' }, { api, io }) // default: all
 
   const savedNames = result.saved.map((r) => r.path.split('/').pop()).sort()
   expect(savedNames).toEqual(['tech_spec_20260729_1441.md', 'tech_spec_20260729_1441.pdf'])
@@ -87,7 +87,7 @@ test('download reports unavailable artifacts but still saves the rest', async ()
 test('download surfaces an empty response as not-available', async () => {
   const api = fakeApi({ docs: { project_guide: '' } }) // present but empty
   const io = fakeIo()
-  const result = await download.doDownload({ uuid: 'abc12345-0000-0000-0000-000000000000', guide: true }, { api }, io)
+  const result = await download.doDownload({ uuid: 'abc12345-0000-0000-0000-000000000000', guide: true }, { api, io })
   expect(result.saved).toHaveLength(0)
   expect(result.skipped[0].reason).toMatch(/not available/i)
 })

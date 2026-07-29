@@ -84,4 +84,13 @@ async function captureLog (fn) {
   return lines.join('\n')
 }
 
-module.exports = { MemBacking, stubClient, routeClient, makeJwt, captureLog, makeResponse }
+// Fake sywac context capturing cliMessage calls (which drive exit code 1).
+function fakeContext () {
+  const messages = []
+  return {
+    messages,
+    cliMessage: (...args) => { messages.push(args) }
+  }
+}
+
+module.exports = { MemBacking, stubClient, routeClient, makeJwt, captureLog, makeResponse, fakeContext }
