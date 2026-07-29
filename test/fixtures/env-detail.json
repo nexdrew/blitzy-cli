@@ -1,0 +1,19 @@
+{
+  "access": [
+    { "entityId": "c2605c19-0d9f-4f8b-b6cb-eacc0a162449", "entityType": "USER", "sharedThrough": "DIRECT" }
+  ],
+  "createdAt": "2026-06-26T14:47:01.964938+00:00",
+  "files": [],
+  "hasTestedLinkedProject": false,
+  "id": "4cd123bf-54b5-4857-a0b1-2a18696c55bb",
+  "instructions": "Alora Pilot -- Linux Node -- Setup Instructions\n\nREQUIRED TOOLCHAIN\n  - Node.js 22.x LTS pinned for reproducibility.",
+  "name": "Alora Pilot - Linux Node",
+  "projects": [
+    { "hasAccess": true, "projectId": "c5a3a7cb-dbd1-4927-81fd-ba0ca0c0c63e", "projectName": "Alora Plus Bulk Front-End XSS Remediation" }
+  ],
+  "revision": 2,
+  "secrets": {},
+  "target_os": "LINUX",
+  "updatedAt": "2026-06-26T15:14:03.584813+00:00",
+  "variables": { "CI": "true", "NODE_ENV": "test", "NPM_CONFIG_FUND": "false" }
+}

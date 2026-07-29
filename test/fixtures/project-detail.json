@@ -1,0 +1,40 @@
+{
+  "createdAt": 1784846507.519628,
+  "currentStatus": {
+    "currentPRStatus": "PENDING",
+    "jobType": "REFACTOR_CODE",
+    "metering": {
+      "filesTouched": 22,
+      "hoursSaved": 74.0,
+      "linesAdded": 1527,
+      "linesEdited": 72,
+      "linesGenerated": 1627,
+      "linesRemoved": 28,
+      "percentComplete": 90.2
+    },
+    "runType": "REFACTOR_CODE",
+    "stage": "CODEGEN",
+    "status": "DONE"
+  },
+  "id": "50930af1-5165-41e6-89a3-7d4445ba4593",
+  "isArchived": false,
+  "isOwner": true,
+  "meteringStats": {
+    "filesTouched": 22,
+    "hoursSaved": 74.0,
+    "linesAdded": 1527,
+    "linesEdited": 72,
+    "linesGenerated": 1627,
+    "linesOnboarded": 0,
+    "linesRemoved": 28
+  },
+  "name": "AloraDL Native Port",
+  "pinned": false,
+  "repoPrefix": "aloradl-native-port",
+  "repoUrl": "aloradl-native-port-4pro1e",
+  "sharedTeams": [
+    { "id": "d1d577c3-15c8-497c-80ae-f9179f9985a7", "memberCount": 5, "name": "LivTech Team" }
+  ],
+  "status": "GITHUB_COMPLETED",
+  "updatedAt": 1784924709.963547
+}

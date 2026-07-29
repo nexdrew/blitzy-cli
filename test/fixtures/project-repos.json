@@ -1,0 +1,22 @@
+[
+  {
+    "branchName": "main",
+    "branchPath": "LivTech-Alora/blitzy-pilot-parent/main",
+    "id": "3609256f-501a-4664-864d-a13ad6265ebd",
+    "orgName": "LivTech-Alora",
+    "repoId": "1257596781",
+    "repoName": "blitzy-pilot-parent",
+    "svcType": "GITHUB",
+    "type": "SOURCE"
+  },
+  {
+    "branchName": "",
+    "branchPath": "LivTech-Alora/blitzy-pilot-parent",
+    "id": "0926afac-0576-495d-b731-bac0493f4ac6",
+    "orgName": "LivTech-Alora",
+    "repoId": "1257596781",
+    "repoName": "blitzy-pilot-parent",
+    "svcType": "GITHUB",
+    "type": "TARGET"
+  }
+]

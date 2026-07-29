@@ -1,0 +1,6 @@
+{
+  "environments": [
+    { "id": "4cd123bf-54b5-4857-a0b1-2a18696c55bb", "name": "Alora Pilot - Linux Node", "revision": 2 },
+    { "id": "f77a91dc-161d-46ba-8213-45f5d3da89fd", "name": "Alora Pilot - Stock Windows", "revision": 10 }
+  ]
+}

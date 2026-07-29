@@ -1,0 +1,54 @@
+{
+  "name": "blitzy-cli",
+  "version": "0.1.0",
+  "description": "Unofficial CLI for the Blitzy platform API",
+  "bin": {
+    "blitzy": "dist/cli.js"
+  },
+  "main": "src/cli.js",
+  "files": [
+    "dist/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "lint": "standard",
+    "test": "bun test",
+    "build": "bun build ./src/cli.js --target=node --format=cjs --outfile=./dist/cli.js --external impit && chmod +x ./dist/cli.js",
+    "compile": "bun build ./src/cli.js --compile --outfile=./dist/blitzy",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nexdrew/blitzy-cli.git"
+  },
+  "keywords": [
+    "blitzy",
+    "cli",
+    "api"
+  ],
+  "author": "nexdrew",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nexdrew/blitzy-cli/issues"
+  },
+  "homepage": "https://github.com/nexdrew/blitzy-cli#readme",
+  "dependencies": {
+    "configstore": "^5.0.1",
+    "impit": "^0.14.3",
+    "sywac": "^1.3.0",
+    "sywac-style-basic": "^2.0.0"
+  },
+  "devDependencies": {
+    "standard": "^17.1.2"
+  },
+  "standard": {
+    "ignore": [
+      "dist/"
+    ]
+  }
+}

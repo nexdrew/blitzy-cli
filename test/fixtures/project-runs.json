@@ -1,0 +1,41 @@
+{
+  "runs": [
+    {
+      "completed_at": null,
+      "created_at": 1784924708,
+      "metering": { "percentComplete": 90.2 },
+      "pr_link": "https://github.com/LivTech-Alora/blitzy-pilot-parent/pull/19",
+      "pr_number": 19,
+      "pr_status": "PENDING",
+      "project_run_id": "38fa82ea-7e29-416f-a865-b8bc9adbc363",
+      "run_type": "REFACTOR_CODE",
+      "status": "DONE",
+      "updated_at": 1785075486
+    },
+    {
+      "completed_at": null,
+      "created_at": 1784800000,
+      "metering": { "percentComplete": 100 },
+      "pr_link": "https://github.com/LivTech-Alora/blitzy-pilot-parent/pull/18",
+      "pr_number": 18,
+      "pr_status": "MERGED",
+      "project_run_id": "11111111-2222-3333-4444-555555555555",
+      "run_type": "REFACTOR_CODE",
+      "status": "DONE",
+      "updated_at": 1784810000
+    },
+    {
+      "completed_at": null,
+      "created_at": 1784700000,
+      "metering": { "percentComplete": 50 },
+      "pr_link": null,
+      "pr_number": null,
+      "pr_status": null,
+      "project_run_id": "99999999-8888-7777-6666-555555555555",
+      "run_type": "REFACTOR_CODE",
+      "status": "DONE",
+      "updated_at": 1784710000
+    }
+  ],
+  "total_count": 3
+}

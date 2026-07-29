@@ -1,0 +1,10 @@
+{
+  "hasNextPage": false,
+  "page": 1,
+  "projects": [
+    { "id": "50930af1-5165-41e6-89a3-7d4445ba4593", "pinned": false },
+    { "id": "5d6057a8-742d-40fa-b731-c9a6c20b6e61", "pinned": true },
+    { "id": "454263f8-548b-4af1-a62c-7212901d2fd5", "pinned": false }
+  ],
+  "totalCount": 3
+}

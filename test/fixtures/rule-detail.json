@@ -1,0 +1,14 @@
+{
+  "access": [
+    { "entityId": "d1d577c3-15c8-497c-80ae-f9179f9985a7", "entityType": "TEAM", "sharedThrough": "PROJECT" }
+  ],
+  "content": "- **Intent:** Ensure rewritten data access follows the target-architecture conventions.\n- **Requirements:** Expose a framework-neutral contract seam; parameterize all data access.",
+  "created_at": "2026-07-23T22:30:23.168526+00:00",
+  "created_by": "c2605c19-0d9f-4f8b-b6cb-eacc0a162449",
+  "id": "ce7a92db-affa-4520-9794-0ebaba84c23d",
+  "name": "Data-Access-Layer Conventions for the Recommended Architecture",
+  "projects": [
+    { "projectId": "5d6057a8-742d-40fa-b731-c9a6c20b6e61", "projectName": "Alora SProc Rewrite - Phase 0" }
+  ],
+  "updated_at": "2026-07-23T22:34:52.178890+00:00"
+}

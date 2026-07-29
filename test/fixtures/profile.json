@@ -1,0 +1,18 @@
+{
+  "authMechanism": "Password",
+  "company": "LivTech",
+  "createdAt": 1779996006,
+  "email": "andrew.goode@livtech.com",
+  "firstName": "Andrew",
+  "id": "c2605c19-0d9f-4f8b-b6cb-eacc0a162449",
+  "isGithubAuthenticated": true,
+  "isVerified": true,
+  "lastName": "Goode",
+  "registrationCompleted": true,
+  "subscription": {
+    "planName": "ENTERPRISE",
+    "status": "ACTIVE"
+  },
+  "updatedAt": 1780506508,
+  "userRole": "SUPER_ADMIN"
+}

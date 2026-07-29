@@ -1,0 +1,8 @@
+{
+  "rules": [
+    { "id": "ce7a92db-affa-4520-9794-0ebaba84c23d", "name": "Data-Access-Layer Conventions for the Recommended Architecture", "scope": "PERSONAL" },
+    { "id": "12775763-a828-4fd7-8403-9bfe9f898565", "name": "Locale and Time Zone Independent Tests", "scope": "PERSONAL" },
+    { "id": "aa83be18-d765-40da-b0c6-0e2ecb768c74", "name": "Commit and PR Hygiene", "scope": "PERSONAL" }
+  ],
+  "totalCount": 3
+}
