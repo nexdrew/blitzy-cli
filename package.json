@@ -1,6 +1,6 @@
 {
   "name": "blitzy-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Unofficial CLI for the Blitzy platform API",
   "bin": {
     "blitzy": "dist/cli.js"
