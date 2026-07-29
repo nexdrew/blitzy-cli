@@ -1,11 +1,6 @@
 # Changelog
 
-## [0.3.0](https://github.com/nexdrew/blitzy-cli/compare/v0.2.0...v0.3.0) (2026-07-29)
-
-
-### Features
-
-* Initial CLI project ([3408ff5](https://github.com/nexdrew/blitzy-cli/commit/3408ff5ffd68f189ad29b926e05aca33e7ac97d1))
+## [1.0.0](https://github.com/nexdrew/blitzy-cli/compare/v0.2.0...v1.0.0) (2026-07-29)
 
 
 ### Bug Fixes
