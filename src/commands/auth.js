@@ -19,10 +19,14 @@ function doAuth (argv, { store, env = process.env, now = Date.now }) {
   const workosExpMs = workosToken ? jwtExpMs(workosToken) : null
   const platformExpMs = source === 'store' ? (store.get('platformTokenExp') || null) : null
 
-  // Authenticated = we have a WorkOS token that isn't visibly expired. An
-  // expired token no longer counts even if a refresh might revive it — the
-  // refresh happens lazily on the next real command.
-  const authenticated = !!workosToken && (workosExpMs == null || workosExpMs > now())
+  // Authenticated = a WorkOS token that isn't visibly expired, OR an expired
+  // one with a refresh token present — commands refresh the session
+  // automatically on their next API call. (A refresh token that the server
+  // would reject can't be detected locally, so that case is optimistic.)
+  const expired = !!(workosExpMs && workosExpMs <= now())
+  const refreshTokenPresent = !!(store && store.get('refreshToken'))
+  const refreshExpected = expired && source === 'store' && refreshTokenPresent
+  const authenticated = !!workosToken && (!expired || refreshExpected)
 
   const iso = (ms) => (ms != null && isFinite(ms) ? new Date(ms).toISOString() : null)
   return {
@@ -31,7 +35,8 @@ function doAuth (argv, { store, env = process.env, now = Date.now }) {
     email: (store && store.get('email')) || null,
     workosExpiresAt: iso(workosExpMs),
     platformExpiresAt: iso(platformExpMs),
-    refreshTokenPresent: !!(store && store.get('refreshToken'))
+    refreshTokenPresent,
+    refreshExpected
   }
 }
 
@@ -43,6 +48,7 @@ function renderAuth (s) {
   line('Login expires', s.workosExpiresAt)
   line('Token expires', s.platformExpiresAt)
   line('Refresh token', s.refreshTokenPresent ? 'present' : 'absent')
+  if (s.refreshExpected) console.log('\nLogin expired; the session will refresh automatically on the next command.')
   if (!s.authenticated) console.log('\nRun `blitzy login` to authenticate.')
 }
 

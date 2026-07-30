@@ -137,11 +137,14 @@ class BlitzyApi {
     if (!workos) throw new BlitzyApiError('Not logged in. Run `blitzy login` first.', { kind: 'auth' })
 
     // If the WorkOS token is visibly expired, try a refresh before wasting an
-    // exchange round trip on a guaranteed 401.
+    // exchange round trip on a guaranteed 401. A refresh response may carry a
+    // fresh platform token directly (skipping the exchange) and/or a fresh
+    // WorkOS token; refreshSession persists both.
     const workosExp = jwtExpMs(workos)
     if (workosExp && Date.now() >= workosExp) {
-      const refreshed = await refreshSession({ client: this.client, store: this.store, env: this.env })
-      if (refreshed) workos = refreshed
+      const refreshed = await this._refresh()
+      if (refreshed && refreshed.platformToken) return refreshed.platformToken
+      if (refreshed && refreshed.workosToken) workos = refreshed.workosToken
     }
 
     try {
@@ -152,9 +155,10 @@ class BlitzyApi {
       // Exchange rejected the WorkOS token (e.g. revoked before its exp, or the
       // pre-check above was skipped because exp was absent): one refresh retry.
       if (err.status === 401) {
-        const refreshed = await refreshSession({ client: this.client, store: this.store, env: this.env })
+        const refreshed = await this._refresh()
         if (refreshed) {
-          const { access_token: accessToken } = await this.exchange(refreshed)
+          if (refreshed.platformToken) return refreshed.platformToken
+          const { access_token: accessToken } = await this.exchange(refreshed.workosToken)
           this.store.setPlatformToken(accessToken, jwtExpMs(accessToken))
           return accessToken
         }
@@ -162,6 +166,10 @@ class BlitzyApi {
       }
       throw err
     }
+  }
+
+  _refresh () {
+    return refreshSession({ client: this.client, store: this.store, env: this.env, baseUrl: this.baseUrl })
   }
 
   async authed (method, path, opts = {}) {

@@ -69,9 +69,9 @@ Credentials are stored with [configstore](https://github.com/yeoman/configstore)
 
 Login exchanges your email/password for a WorkOS access token (~24h) and, from that, a
 short-lived platform token (~1h) that is refreshed automatically as you run commands.
-When the 24h token expires, run `blitzy login` again. (Login also stores a refresh
-token; automatic session refresh is scaffolded but disabled until the refresh endpoint
-is confirmed — see `src/refresh.js`.)
+Login also stores a refresh token, and the CLI uses it to renew the whole session
+automatically when the 24h token expires (the same `/auth/refresh` endpoint the Blitzy
+web app uses) — you only need `blitzy login` again if the refresh itself is rejected.
 
 Check your auth state without touching the network (handy for scripts and agents):
 
@@ -192,7 +192,7 @@ The CLI is built to be driven by scripts and AI agents:
 | `BLITZY_TOKEN`      | A WorkOS access token to authenticate with, overriding stored creds. Useful for CI. |
 | `BLITZY_API_URL`    | Override the API base URL (default `https://platform.api.blitzy.com/v1`). |
 | `BLITZY_TRANSPORT`  | `impit` (default) or `fetch`. See below.                                |
-| `BLITZY_REFRESH_URL` | Enable session refresh against this endpoint (temporary escape hatch until the real refresh endpoint is confirmed and baked in). |
+| `BLITZY_REFRESH_URL` | Override the session-refresh endpoint (default `{BLITZY_API_URL}/auth/refresh`). |
 
 ### About the transport
 

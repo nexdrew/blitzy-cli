@@ -228,7 +228,7 @@ test('platformToken retries via refresh when the exchange 401s unexpectedly', as
   // see it, so the first exchange 401s and the refresh retry kicks in.
   const store = new Store(new MemBacking({ workosToken: 'revoked-opaque', refreshToken: 'r1' }))
   const { api } = apiWith({
-    'POST /auth/refresh': { status: 200, body: { access_token: 'fresh-workos', refresh_token: 'r2' } },
+    'POST /auth/refresh': { status: 200, body: { workos_access_token: 'fresh-workos', refresh_token: 'r2' } },
     'POST /auth': (url, init) => (init.headers.authorization === 'Bearer fresh-workos'
       ? { status: 200, body: { access_token: futureJwt() } }
       : { status: 401, body: { message: 'Jwt is expired' } })
@@ -236,6 +236,23 @@ test('platformToken retries via refresh when the exchange 401s unexpectedly', as
 
   const token = await api.platformToken()
   expect(token).toBeTruthy()
+  expect(store.get('refreshToken')).toBe('r2')
+})
+
+test('a refresh response carrying a platform access_token skips the exchange', async () => {
+  const store = new Store(new MemBacking({ workosToken: expiredJwt(), refreshToken: 'r1' }))
+  const platform = futureJwt()
+  const exchanges = []
+  const { api } = apiWith({
+    // Default endpoint: no BLITZY_REFRESH_URL — {base}/auth/refresh is used.
+    'POST /auth/refresh': { status: 200, body: { access_token: platform, refresh_token: 'r2' } },
+    'POST /auth': () => { exchanges.push(1); return { status: 401, body: { message: 'should not be called' } } }
+  }, { store, env: {} })
+
+  const token = await api.platformToken()
+  expect(token).toBe(platform)
+  expect(exchanges).toHaveLength(0) // platform token came straight from the refresh
+  expect(store.get('platformToken')).toBe(platform)
   expect(store.get('refreshToken')).toBe('r2')
 })
 

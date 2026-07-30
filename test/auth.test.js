@@ -29,11 +29,19 @@ test('doAuth reports an authenticated stored session', () => {
   expect(s.refreshTokenPresent).toBe(true)
 })
 
-test('doAuth treats an expired workos token as not authenticated', () => {
+test('doAuth counts an expired workos token WITH a refresh token as authenticated (auto-refresh)', () => {
   const store = storeWith({ workosToken: deadJwt(), refreshToken: 'r1' })
   const s = auth.doAuth({}, { store, env: {}, now: () => NOW })
-  expect(s.authenticated).toBe(false)
+  expect(s.authenticated).toBe(true)
+  expect(s.refreshExpected).toBe(true)
   expect(s.source).toBe('store')
+})
+
+test('doAuth treats an expired workos token WITHOUT a refresh token as not authenticated', () => {
+  const store = storeWith({ workosToken: deadJwt() })
+  const s = auth.doAuth({}, { store, env: {}, now: () => NOW })
+  expect(s.authenticated).toBe(false)
+  expect(s.refreshExpected).toBe(false)
 })
 
 test('doAuth prefers BLITZY_TOKEN over the store', () => {
