@@ -76,7 +76,7 @@ jobs:
         include:
           - { runner: ubuntu-latest, out: blitzy-linux-x64 }
           - { runner: ubuntu-24.04-arm, out: blitzy-linux-arm64 }
-          - { runner: macos-15-intel, out: blitzy-darwin-x64 }
+          - { runner: macos-26-intel, out: blitzy-darwin-x64 }
           - { runner: macos-latest, out: blitzy-darwin-arm64 }
           - { runner: windows-latest, out: blitzy-windows-x64.exe }
     steps:
