@@ -1,7 +1,7 @@
 'use strict'
 
 const { test, expect } = require('bun:test')
-const { captureLog, fakeContext } = require('./helpers')
+const { captureLog, fakeContext, fakeErrio } = require('./helpers')
 
 const login = require('../src/commands/login')
 const whoami = require('../src/commands/whoami')
@@ -45,12 +45,13 @@ test('login handle (token path) renders and does not error', async () => {
   expect(ctx.messages).toHaveLength(0)
 })
 
-test('login handle routes errors to cliMessage', async () => {
-  const ctx = fakeContext()
+test('login handle routes errors to stderr with exit code', async () => {
+  const e = fakeErrio()
   const store = { setSession: () => {}, set: () => {}, get: () => null }
   const api = { profile: async () => { throw new Error('bad token') } }
-  await login.handle({ token: 'x' }, ctx, { api, store, io: { isTty: false } })
-  expect(ctx.messages[0][0]).toBe('bad token')
+  await login.handle({ token: 'x' }, fakeContext(), { api, store, io: { isTty: false }, errio: e.io })
+  expect(e.lines[0]).toBe('bad token')
+  expect(e.codes[0]).toBe(1)
 })
 
 test('renderLogin falls back gracefully with a sparse profile', async () => {
@@ -70,18 +71,26 @@ test('whoami handle renders on success', async () => {
   expect(ctx.messages).toHaveLength(0)
 })
 
-test('whoami handle routes errors to cliMessage', async () => {
-  const ctx = fakeContext()
-  const api = { profile: async () => { throw new Error('Not logged in.') } }
-  await whoami.handle({}, ctx, { api, store: { get: () => null }, env: {} })
-  expect(ctx.messages[0][0]).toMatch(/Not logged in/)
+test('whoami handle routes errors to stderr with exit code', async () => {
+  const e = fakeErrio()
+  const err = new Error('Not logged in. Run `blitzy login` first.')
+  err.kind = 'auth'
+  const api = { profile: async () => { throw err } }
+  await whoami.handle({}, fakeContext(), { api, store: { get: () => null }, env: {}, errio: e.io })
+  expect(e.lines[0]).toMatch(/Not logged in/)
+  expect(e.codes[0]).toBe(2) // auth errors get the typed exit code
 })
 
-test('whoami handle --json emits raw profile', async () => {
+test('whoami handle --json emits the profile plus a session block', async () => {
   const ctx = fakeContext()
   const api = { profile: async () => profile }
   const out = await captureLog(() => whoami.handle({ json: true }, ctx, { api, store: { get: () => null }, env: {} }))
-  expect(JSON.parse(out).email).toBe('andrew.goode@livtech.com')
+  const parsed = JSON.parse(out)
+  expect(parsed.email).toBe('andrew.goode@livtech.com')
+  expect(parsed.session.authenticated).toBe(true)
+  expect(parsed.session.source).toBe('store')
+  expect(parsed.session).toHaveProperty('workosExpiresAt')
+  expect(parsed.session).toHaveProperty('platformExpiresAt')
 })
 
 // --- logout ---
@@ -95,13 +104,14 @@ test('logout handle renders result', async () => {
 
 // --- usage ---
 
-test('usage handle renders and errors route to cliMessage', async () => {
+test('usage handle renders and errors route to stderr', async () => {
   const okOut = await captureLog(() => usage.handle({}, fakeContext(), { api: { usage: async () => usageFixture } }))
   expect(okOut).toContain('Lines generated')
 
-  const ctx = fakeContext()
-  await usage.handle({}, ctx, { api: { usage: async () => { throw new Error('boom') } } })
-  expect(ctx.messages[0][0]).toBe('boom')
+  const e = fakeErrio()
+  await usage.handle({}, fakeContext(), { api: { usage: async () => { throw new Error('boom') } }, errio: e.io })
+  expect(e.lines[0]).toBe('boom')
+  expect(e.codes[0]).toBe(1)
 })
 
 // --- rules ---
@@ -113,9 +123,10 @@ test('rules handle: list, detail, and error paths', async () => {
   const detailOut = await captureLog(() => rules.handle({ uuid: 'x' }, fakeContext(), { api: { getRule: async () => ruleDetail } }))
   expect(detailOut).toContain('framework-neutral contract seam')
 
-  const ctx = fakeContext()
-  await rules.handle({}, ctx, { api: { listRules: async () => { throw new Error('nope') } } })
-  expect(ctx.messages[0][0]).toBe('nope')
+  const e = fakeErrio()
+  await rules.handle({}, fakeContext(), { api: { listRules: async () => { throw new Error('nope') } }, errio: e.io })
+  expect(e.lines[0]).toBe('nope')
+  expect(e.codes[0]).toBe(1)
 })
 
 // --- envs ---
@@ -127,9 +138,10 @@ test('envs handle: list, detail, and error paths', async () => {
   const detailOut = await captureLog(() => envs.handle({ uuid: 'x' }, fakeContext(), { api: { getEnvironment: async () => envDetail } }))
   expect(detailOut).toContain('Node.js 22.x LTS')
 
-  const ctx = fakeContext()
-  await envs.handle({ uuid: 'x' }, ctx, { api: { getEnvironment: async () => { throw new Error('gone') } } })
-  expect(ctx.messages[0][0]).toBe('gone')
+  const e = fakeErrio()
+  await envs.handle({ uuid: 'x' }, fakeContext(), { api: { getEnvironment: async () => { throw new Error('gone') } }, errio: e.io })
+  expect(e.lines[0]).toBe('gone')
+  expect(e.codes[0]).toBe(1)
 })
 
 // --- projects ---
@@ -148,10 +160,11 @@ test('projects handle: list and json detail', async () => {
   expect(JSON.parse(jsonOut).name).toBe('AloraDL Native Port')
 })
 
-test('projects handle routes errors to cliMessage', async () => {
-  const ctx = fakeContext()
-  await projects.handle({}, ctx, { api: { listProjectsDetailed: async () => { throw new Error('down') } }, gh: null })
-  expect(ctx.messages[0][0]).toBe('down')
+test('projects handle routes errors to stderr with exit code', async () => {
+  const e = fakeErrio()
+  await projects.handle({}, fakeContext(), { api: { listProjectsDetailed: async () => { throw new Error('down') } }, gh: null, errio: e.io })
+  expect(e.lines[0]).toBe('down')
+  expect(e.codes[0]).toBe(1)
 })
 
 // --- download ---
@@ -177,12 +190,13 @@ test('download handle --json exits 0 with structured output', async () => {
   expect(ctx.messages).toHaveLength(0)
 })
 
-test('download handle exits non-zero (cliMessage) when nothing saved', async () => {
-  const ctx = fakeContext()
+test('download handle exits non-zero via stderr when nothing saved', async () => {
+  const e = fakeErrio()
   const api = dlApi({}) // nothing available -> all skipped
-  await download.handle({ uuid: 'abcdabcd-0000-0000-0000-000000000000', guide: true }, ctx, { api, io: dlIo() })
-  expect(ctx.messages).toHaveLength(1)
-  expect(ctx.messages[0][1]).toMatch(/skipped guide/)
+  await download.handle({ uuid: 'abcdabcd-0000-0000-0000-000000000000', guide: true }, fakeContext(), { api, io: dlIo(), errio: e.io })
+  expect(e.lines).toHaveLength(1)
+  expect(e.lines[0]).toMatch(/skipped guide/)
+  expect(e.codes[0]).toBe(1)
 })
 
 test('download handle prints normally when something saved', async () => {
@@ -193,13 +207,14 @@ test('download handle prints normally when something saved', async () => {
   expect(ctx.messages).toHaveLength(0)
 })
 
-test('download handle routes unexpected errors to cliMessage', async () => {
-  const ctx = fakeContext()
+test('download handle routes unexpected errors to stderr', async () => {
+  const e = fakeErrio()
   const api = dlApi({ project_guide: '# g' })
   const io = dlIo()
   io.mkdirp = () => { throw new Error('EACCES: mkdir failed') }
-  await download.handle({ uuid: 'abcdabcd-0000-0000-0000-000000000000', guide: true }, ctx, { api, io })
-  expect(ctx.messages[0][0]).toMatch(/mkdir failed/)
+  await download.handle({ uuid: 'abcdabcd-0000-0000-0000-000000000000', guide: true }, fakeContext(), { api, io, errio: e.io })
+  expect(e.lines[0]).toMatch(/mkdir failed/)
+  expect(e.codes[0]).toBe(1)
 })
 
 test('renderDownload prints the formatted result', async () => {

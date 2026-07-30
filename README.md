@@ -24,6 +24,7 @@ blitzy <command> [options]
 Commands:
   login            Authenticate with Blitzy and store credentials
   whoami           Show the currently authenticated user
+  auth             Show local authentication status without calling the API
   logout           Clear stored credentials
   projects [uuid]  List projects, or show details for one by uuid
   rules [uuid]     List reusable rules, or show one rule's full content by uuid
@@ -44,6 +45,8 @@ Download options (download):
   --tech-spec      Tech spec (Markdown + PDF)
   --build-prompt   Build prompt
   --all            All available artifacts (the default)
+  --stdout         Write one artifact to stdout instead of a file
+  --probe          Report which artifacts exist without saving files
   --out <dir>      Output directory (default: ./<project-slug>-<id>)
 
 Global Options:
@@ -66,7 +69,16 @@ Credentials are stored with [configstore](https://github.com/yeoman/configstore)
 
 Login exchanges your email/password for a WorkOS access token (~24h) and, from that, a
 short-lived platform token (~1h) that is refreshed automatically as you run commands.
-When the 24h token expires, run `blitzy login` again.
+When the 24h token expires, run `blitzy login` again. (Login also stores a refresh
+token; automatic session refresh is scaffolded but disabled until the refresh endpoint
+is confirmed — see `src/refresh.js`.)
+
+Check your auth state without touching the network (handy for scripts and agents):
+
+```sh
+blitzy auth          # human-readable status; exit code 2 when not authenticated
+blitzy auth --json   # {"authenticated":…,"source":…,"workosExpiresAt":…,…}
+```
 
 If your account uses SSO (e.g. "Continue with Microsoft"), interactive login isn't
 supported yet — sign in through the browser and pass the token directly:
@@ -124,6 +136,15 @@ By default files go to `./<project-slug>-<short-id>/` under the current director
 `--out <dir>` to choose your own. Artifacts that don't exist yet for the project (e.g. the
 Project Guide before code-gen has run) are reported as skipped, and the rest still download.
 
+For scripting, `--stdout` streams a single artifact's raw bytes to stdout (pick exactly
+one artifact flag; with `--tech-spec` it picks the Markdown flavor), and `--probe` reports
+which artifacts exist without writing anything:
+
+```sh
+blitzy download <uuid> --aap --stdout > aap.md
+blitzy download <uuid> --probe --json   # {"artifacts":[{"key":"aap","available":true,…},…]}
+```
+
 ### Submodule PRs (optional gh integration)
 
 A Blitzy project's parent PR often opens follow-up PRs in submodule repos, recorded
@@ -145,7 +166,24 @@ To bound the number of `gh` subprocess calls, submodule lookups run only for the
 recent PRs; when a project has more, the output says so.
 
 This is best-effort: if `gh` is missing, unauthenticated, or a lookup fails, the rest of
-the detail still renders. Pass `--no-gh` to skip the gh calls entirely.
+the detail still renders (with a note when `gh` is installed but not logged in). Pass
+`--no-gh` to skip the gh calls entirely. `--json` detail output includes the raw `runs`
+payload plus a `gh` block (`{enabled, available, authenticated, used, truncatedAt}`) so
+scripts can tell "no submodule PRs" apart from "gh couldn't look".
+
+## Scripting and exit codes
+
+The CLI is built to be driven by scripts and AI agents:
+
+- **Errors go to stderr**, never stdout. With `--json`, failures are emitted as a single
+  structured object (`{"error":{"message","kind","status","code"}}`), so stdout is always
+  parseable on success and stderr is always parseable on failure.
+- **Typed exit codes**: `0` success · `1` general error · `2` auth required (run
+  `blitzy login`) · `3` not found · `4` network failure.
+- **Strict argument handling**: unknown commands, flags, and extra arguments exit `1`
+  with an error instead of being silently ignored.
+- `blitzy auth --json` is the cheapest pre-flight: no network, exit `2` when a login is
+  needed.
 
 ## Environment variables
 
@@ -154,6 +192,7 @@ the detail still renders. Pass `--no-gh` to skip the gh calls entirely.
 | `BLITZY_TOKEN`      | A WorkOS access token to authenticate with, overriding stored creds. Useful for CI. |
 | `BLITZY_API_URL`    | Override the API base URL (default `https://platform.api.blitzy.com/v1`). |
 | `BLITZY_TRANSPORT`  | `impit` (default) or `fetch`. See below.                                |
+| `BLITZY_REFRESH_URL` | Enable session refresh against this endpoint (temporary escape hatch until the real refresh endpoint is confirmed and baked in). |
 
 ### About the transport
 

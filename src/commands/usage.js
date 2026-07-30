@@ -2,6 +2,7 @@
 
 const { deps } = require('../app')
 const { output } = require('../format')
+const { fail } = require('../errors')
 
 async function doUsage (argv, { api }) {
   const usage = await api.usage()
@@ -37,7 +38,7 @@ async function handle (argv, context, d) {
     const result = await doUsage(argv, d)
     output(argv, result.usage, () => renderUsage(result))
   } catch (err) {
-    return context.cliMessage(err.message)
+    return fail(argv, err, d.errio)
   }
 }
 

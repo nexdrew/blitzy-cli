@@ -145,6 +145,7 @@ function fakeGh (bodies = {}, states = {}) {
   return {
     calls,
     available: async () => true,
+    authenticated: async () => true,
     prView: async (repo, number, fields) => {
       calls.push({ repo, number, fields })
       if (fields.includes('body')) return { body: bodies[`${repo}#${number}`] || '' }
@@ -236,6 +237,7 @@ test('projects detail degrades gracefully when a gh lookup fails', async () => {
   const { api } = projectDetailApi()
   const gh = {
     available: async () => true,
+    authenticated: async () => true,
     prView: async () => { throw new Error('gh: not authenticated') }
   }
   const result = await projects.doProjects({ uuid: '50930af1-5165-41e6-89a3-7d4445ba4593' }, { api, gh })
@@ -277,4 +279,28 @@ test('usage renders quota lines with percentages', async () => {
   expect(out).toContain('Lines generated')
   expect(out).toContain('186,825 / 1,250,000')
   expect(out).toContain('Hours saved')
+})
+
+// --- v1.1: gh metadata + raw runs in detail results ---
+
+test('projects detail reports gh metadata and skips enrichment when gh is unauthenticated', async () => {
+  const { api } = projectDetailApi()
+  const gh = {
+    available: async () => true,
+    authenticated: async () => false,
+    prView: async () => { throw new Error('prView() should not be called when unauthenticated') }
+  }
+  const result = await projects.doProjects({ uuid: '50930af1-5165-41e6-89a3-7d4445ba4593' }, { api, gh })
+  expect(result.ghUsed).toBe(false)
+  expect(result.gh).toEqual({ enabled: true, available: true, authenticated: false, used: false, truncatedAt: null })
+  const out = await captureLog(() => projects.renderDetail(result))
+  expect(out).toContain('gh installed but not authenticated')
+})
+
+test('projects detail carries the raw runs payload through for --json consumers', async () => {
+  const { api } = projectDetailApi()
+  const result = await projects.doProjects({ uuid: '50930af1-5165-41e6-89a3-7d4445ba4593' }, { api })
+  expect(result.runs).toBeTruthy()
+  expect(Array.isArray(result.runs.runs)).toBe(true)
+  expect(result.gh.enabled).toBe(false) // no gh wrapper supplied
 })

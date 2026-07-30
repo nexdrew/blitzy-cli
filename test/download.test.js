@@ -132,3 +132,80 @@ test('api.downloadDocument returns raw bytes and throws on HTTP error', async ()
   const api2 = new BlitzyApi({ client: client2, store: new Store(new MemBacking({ workosToken: 'wtok' })), env: {} })
   await expect(api2.downloadDocument('pid', 'project_guide', 'md')).rejects.toThrow(/Document not available/)
 })
+
+// --- v1.1: --stdout and --probe ---
+
+test('download --stdout writes exactly one artifact to stdout raw', async () => {
+  const api = fakeApi({ docs: { target_tech_spec: '# AAP body' } })
+  const io = fakeIo()
+  const chunks = []
+  io.stdout = (buf) => chunks.push(buf)
+  const result = await download.doDownload({ uuid: 'abcdabcd-0000-0000-0000-000000000000', aap: true, stdout: true }, { api, io })
+  expect(result.mode).toBe('stdout')
+  expect(result.key).toBe('aap')
+  expect(Buffer.concat(chunks).toString()).toBe('# AAP body')
+  expect(Object.keys(io.files)).toHaveLength(0) // nothing written to disk
+})
+
+test('download --stdout with --tech-spec picks the Markdown flavor only', () => {
+  expect(download.selectedKeys({ 'tech-spec': true, stdout: true })).toEqual(['tech-spec-md'])
+})
+
+test('download --stdout rejects zero or multiple artifact selections', async () => {
+  const api = fakeApi()
+  const io = fakeIo()
+  await expect(download.doDownload({ uuid: 'x', stdout: true }, { api, io })).rejects.toThrow(/exactly one artifact/)
+  await expect(download.doDownload({ uuid: 'x', stdout: true, aap: true, guide: true }, { api, io })).rejects.toThrow(/exactly one artifact/)
+  await expect(download.doDownload({ uuid: 'x', stdout: true, all: true, aap: true }, { api, io })).rejects.toThrow(/exactly one artifact/)
+})
+
+test('download --stdout rejects --json and --probe combinations', async () => {
+  const api = fakeApi()
+  const io = fakeIo()
+  await expect(download.doDownload({ uuid: 'x', stdout: true, aap: true, json: true }, { api, io })).rejects.toThrow(/--json/)
+  await expect(download.doDownload({ uuid: 'x', stdout: true, aap: true, probe: true }, { api, io })).rejects.toThrow(/--probe/)
+})
+
+test('download --stdout surfaces an unavailable artifact as an error', async () => {
+  const api = fakeApi({ docs: {} })
+  const io = fakeIo()
+  io.stdout = () => { throw new Error('should not write') }
+  await expect(download.doDownload({ uuid: 'x', aap: true, stdout: true }, { api, io })).rejects.toThrow(/aap not available/)
+})
+
+test('download --probe reports availability without writing files', async () => {
+  const api = fakeApi({ docs: { target_tech_spec: '# AAP', project_guide: '# guide' } })
+  const io = fakeIo()
+  const result = await download.doDownload({ uuid: 'abcdabcd-0000-0000-0000-000000000000', probe: true }, { api, io })
+  expect(result.mode).toBe('probe')
+  expect(io.dirs).toHaveLength(0)
+  expect(Object.keys(io.files)).toHaveLength(0)
+  const byKey = Object.fromEntries(result.artifacts.map((a) => [a.key, a]))
+  expect(byKey.aap.available).toBe(true)
+  expect(byKey.aap.bytes).toBe(5)
+  expect(byKey.guide.available).toBe(true)
+  expect(byKey['build-prompt'].available).toBe(false)
+  expect(byKey['build-prompt'].reason).toMatch(/Document not found/)
+})
+
+test('formatProbe renders availability lines', () => {
+  const text = download.formatProbe({
+    projectId: 'p1',
+    artifacts: [
+      { key: 'aap', available: true, bytes: 2048 },
+      { key: 'guide', available: false, reason: 'HTTP 404' }
+    ]
+  })
+  expect(text).toContain('aap')
+  expect(text).toContain('available (2.0 KB)')
+  expect(text).toContain('missing: HTTP 404')
+})
+
+test('download aborts entirely on auth errors instead of reporting them as skipped', async () => {
+  const api = {
+    getProject: async () => ({ name: 'P' }),
+    downloadDocument: async () => { const e = new Error('Session expired.'); e.status = 401; e.kind = 'auth'; throw e }
+  }
+  const io = fakeIo()
+  await expect(download.doDownload({ uuid: 'x', aap: true }, { api, io })).rejects.toThrow(/Session expired/)
+})

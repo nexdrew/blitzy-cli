@@ -93,4 +93,20 @@ function fakeContext () {
   }
 }
 
-module.exports = { MemBacking, stubClient, routeClient, makeJwt, captureLog, makeResponse, fakeContext }
+// Fake error IO for src/errors.js fail()/failMessage(): captures stderr lines
+// and exit codes instead of touching process. Pass `io` as d.errio in handlers.
+function fakeErrio () {
+  const lines = []
+  const codes = []
+  return {
+    lines,
+    codes,
+    io: {
+      stderr: (line) => lines.push(line),
+      exit: (code) => codes.push(code)
+    },
+    get errio () { return this.io }
+  }
+}
+
+module.exports = { MemBacking, stubClient, routeClient, makeJwt, captureLog, makeResponse, fakeContext, fakeErrio }
