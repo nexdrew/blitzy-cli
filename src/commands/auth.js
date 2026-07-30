@@ -62,7 +62,7 @@ async function handle (argv, context, d) {
 
 module.exports = {
   flags: 'auth',
-  desc: 'Show local authentication status without calling the API (exit 2 if not authenticated)',
+  desc: 'Show local authentication status without calling the API (exit 2 if not authed)',
   run: (argv, context) => handle(argv, context, deps()),
   handle,
   doAuth,
