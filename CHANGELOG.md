@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/nexdrew/blitzy-cli/compare/v1.0.0...v1.0.1) (2026-07-30)
+
+
+### Bug Fixes
+
+* Use macos-26-intel GHA runner for darwin-x64 binary ([#5](https://github.com/nexdrew/blitzy-cli/issues/5)) ([44ad6fe](https://github.com/nexdrew/blitzy-cli/commit/44ad6fecbb1d5c7fd1406ac61610436f64a65022))
+
 ## [1.0.0](https://github.com/nexdrew/blitzy-cli/compare/v0.2.0...v1.0.0) (2026-07-29)
 
 
