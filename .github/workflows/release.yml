@@ -74,36 +74,40 @@ jobs:
       attestations: write  # store the build-provenance attestation
     # impit ships a per-platform native binary, so each target must be compiled
     # on its own OS/arch runner (cross-compiling embeds the wrong impit binary).
-    # x64 targets use Bun's -baseline flavor (no AVX/AVX2 requirement): the
+    # x64 legs install Bun's -baseline flavor (no AVX/AVX2 requirement): the
     # standard builds warn about "strange crashes" — and genuinely can crash —
     # on pre-2013 x86 CPUs and under Rosetta 2 on Apple Silicon, where an
     # x86_64 Homebrew installs the darwin-x64 binary. arm64 has no baseline
-    # variant (not applicable).
+    # variant (not applicable). Each leg installs the exact flavor it ships via
+    # bun-download-url and compiles with NO --target, embedding the running
+    # runtime: `--target` makes bun download a runtime zip mid-compile, which
+    # deterministically failed on the windows runner ("Failed to extract
+    # executable", v1.2.1) and is a network flake risk everywhere else.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { runner: ubuntu-latest, out: blitzy-linux-x64, target: bun-linux-x64-baseline }
-          - { runner: ubuntu-24.04-arm, out: blitzy-linux-arm64, target: bun-linux-arm64 }
-          - { runner: macos-26-intel, out: blitzy-darwin-x64, target: bun-darwin-x64-baseline }
-          - { runner: macos-latest, out: blitzy-darwin-arm64, target: bun-darwin-arm64 }
-          - { runner: windows-latest, out: blitzy-windows-x64.exe, target: bun-windows-x64-baseline }
+          - { runner: ubuntu-latest, out: blitzy-linux-x64, bun-url: 'https://github.com/oven-sh/bun/releases/latest/download/bun-linux-x64-baseline.zip' }
+          - { runner: ubuntu-24.04-arm, out: blitzy-linux-arm64, bun-url: 'https://github.com/oven-sh/bun/releases/latest/download/bun-linux-aarch64.zip' }
+          - { runner: macos-26-intel, out: blitzy-darwin-x64, bun-url: 'https://github.com/oven-sh/bun/releases/latest/download/bun-darwin-x64-baseline.zip' }
+          - { runner: macos-latest, out: blitzy-darwin-arm64, bun-url: 'https://github.com/oven-sh/bun/releases/latest/download/bun-darwin-aarch64.zip' }
+          - { runner: windows-latest, out: blitzy-windows-x64.exe, bun-url: 'https://github.com/oven-sh/bun/releases/latest/download/bun-windows-x64-baseline.zip' }
     steps:
       - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-download-url: ${{ matrix.bun-url }}
 
       # Installs this platform's prebuilt impit binary, which --compile embeds.
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # --target stays on the runner's own OS/arch (only the baseline flavor
-      # differs), so the locally-installed impit addon remains the right one.
+      # No --target: embeds the running bun (the exact flavor installed above),
+      # so nothing is downloaded mid-compile.
       - name: Compile standalone binary
         shell: bash
-        run: bun build --compile --target=${{ matrix.target }} ./src/cli.js --outfile dist/${{ matrix.out }}
+        run: bun build --compile ./src/cli.js --outfile dist/${{ matrix.out }}
 
       # Runs the freshly built binary to prove it works (and that impit loaded).
       - name: Smoke test
@@ -139,12 +143,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The alpine image's installed bun is the non-baseline musl flavor, so
+      # this leg still needs --target (mid-compile runtime download). That
+      # worked fine on linux runners, but retry anyway since a truncated
+      # download fails the compile ("Failed to extract executable").
       - name: Compile standalone musl binary in Alpine
         run: |
           docker run --rm -v "$PWD:/w" -w /w oven/bun:alpine sh -c '
-            bun install --frozen-lockfile &&
-            bun build --compile --target=bun-linux-x64-musl-baseline ./src/cli.js --outfile dist/blitzy-linux-x64-musl &&
-            ./dist/blitzy-linux-x64-musl --version
+            bun install --frozen-lockfile || exit 1
+            for attempt in 1 2 3; do
+              if bun build --compile --target=bun-linux-x64-musl-baseline ./src/cli.js --outfile dist/blitzy-linux-x64-musl; then
+                exec ./dist/blitzy-linux-x64-musl --version
+              fi
+              echo "compile attempt ${attempt} failed; clearing bun cache and retrying in 15s..."
+              rm -rf "$HOME/.bun/install/cache" 2>/dev/null || true
+              sleep 15
+            done
+            echo "compile failed after 3 attempts"
+            exit 1
           '
 
       # Signed provenance linking the binary to this repo + workflow run.
