@@ -14,7 +14,12 @@ npm install -g blitzy-cli
 npx blitzy-cli --help
 ```
 
-Requires Node.js >= 20.
+Requires Node.js >= 20. Or install a standalone binary (no Node needed) via
+[Homebrew](https://brew.sh) on macOS/Linux:
+
+```sh
+brew install nexdrew/tap/blitzy-cli
+```
 
 ## Usage
 
@@ -278,7 +283,10 @@ push to `main` updates a "Release PR" that accumulates the version bump and chan
    binary is embedded — attests build provenance for each
    (`actions/attest-build-provenance`, verifiable with
    `gh attestation verify <file> --repo nexdrew/blitzy-cli`), and attaches them to the
-   GitHub Release.
+   GitHub Release, and
+4. regenerates `Formula/blitzy-cli.rb` in [nexdrew/homebrew-tap](https://github.com/nexdrew/homebrew-tap)
+   from the release's asset digests (`scripts/homebrew-formula.mjs` is the formula's
+   single source of truth — the file in the tap is always generated, never hand-edited).
 
 One-time setup:
 
@@ -286,6 +294,8 @@ One-time setup:
   package: repository `nexdrew/blitzy-cli`, workflow `release.yml`, environment `npm`.
 - In GitHub, create an **Environment named `npm`** (optionally with a protection/approval
   rule on releases).
+- Create a fine-grained PAT with **contents: write** on `nexdrew/homebrew-tap` and add
+  it to this repo as the **`TAP_GITHUB_TOKEN`** secret (used by the tap-update job).
 
 ## License
 
