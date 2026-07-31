@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/nexdrew/blitzy-cli/compare/v1.1.0...v1.2.0) (2026-07-31)
+
+
+### Features
+
+* Homebrew tap, build-provenance attestations, and binary trust docs ([#9](https://github.com/nexdrew/blitzy-cli/issues/9)) ([4a47d4e](https://github.com/nexdrew/blitzy-cli/commit/4a47d4ec744ccff05dc7eaf1ccea20b566c0a79e))
+
 ## [1.1.0](https://github.com/nexdrew/blitzy-cli/compare/v1.0.1...v1.1.0) (2026-07-31)
 
 
