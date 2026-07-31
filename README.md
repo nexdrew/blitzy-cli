@@ -219,7 +219,23 @@ There are two ways to ship this CLI, and they get `impit` to the user differentl
 2. **Standalone executable (`bun build --compile`).** `bun run compile` produces a single
    ~67 MB binary (`dist/blitzy`) that embeds the Bun runtime, the app, and `impit`'s
    native addon. Users need nothing installed — not Node, not Bun, not npm — just the
-   binary for their platform.
+   binary for their platform. Release binaries are attached to each
+   [GitHub Release](https://github.com/nexdrew/blitzy-cli/releases)
+   (`blitzy-darwin-arm64`, `blitzy-darwin-x64`, `blitzy-linux-x64`,
+   `blitzy-linux-arm64`, `blitzy-linux-x64-musl`, `blitzy-windows-x64.exe`).
+
+   **These binaries are not code-signed or notarized.** npm is the recommended install
+   path; only use a binary if you've decided you trust it (each one is built by this
+   repo's public release workflow — check the release's workflow run if in doubt). On
+   macOS, Gatekeeper quarantines the download and the ad-hoc signature won't validate
+   after transfer, so a binary you've chosen to trust needs:
+
+   ```sh
+   codesign --remove-signature blitzy-darwin-arm64
+   codesign --force --sign - blitzy-darwin-arm64
+   xattr -cr blitzy-darwin-arm64
+   chmod +x blitzy-darwin-arm64
+   ```
 
    Caveat: `--compile` embeds only the `impit` native binary that is **installed at build
    time**, so a binary must be built **on** (or with the optional dependency installed
