@@ -14,7 +14,12 @@ npm install -g blitzy-cli
 npx blitzy-cli --help
 ```
 
-Requires Node.js >= 20.
+Requires Node.js >= 20. Or install a standalone binary (no Node needed) via
+[Homebrew](https://brew.sh) on macOS/Linux:
+
+```sh
+brew install nexdrew/tap/blitzy-cli
+```
 
 ## Usage
 
@@ -209,7 +214,7 @@ is provided for the day Blitzy allow-lists non-browser clients directly.
 
 ## Distribution
 
-There are two ways to ship this CLI, and they get `impit` to the user differently:
+There are three ways to ship this CLI, and they get `impit` to the user differently:
 
 1. **npm package (default).** `npm install -g blitzy-cli` installs a Node-compatible
    bundle (`dist/cli.js`, with `impit` kept external) plus `impit` itself; npm resolves
@@ -219,7 +224,29 @@ There are two ways to ship this CLI, and they get `impit` to the user differentl
 2. **Standalone executable (`bun build --compile`).** `bun run compile` produces a single
    ~67 MB binary (`dist/blitzy`) that embeds the Bun runtime, the app, and `impit`'s
    native addon. Users need nothing installed — not Node, not Bun, not npm — just the
-   binary for their platform.
+   binary for their platform. Release binaries are attached to each
+   [GitHub Release](https://github.com/nexdrew/blitzy-cli/releases)
+   (`blitzy-darwin-arm64`, `blitzy-darwin-x64`, `blitzy-linux-x64`,
+   `blitzy-linux-arm64`, `blitzy-linux-x64-musl`, `blitzy-windows-x64.exe`).
+
+   **These binaries are not code-signed or notarized.** npm is the recommended install
+   path; only use a binary if you've decided you trust it. Each binary is built by this
+   repo's public release workflow and carries a GitHub build-provenance attestation —
+   verify what you downloaded before running it:
+
+   ```sh
+   gh attestation verify blitzy-darwin-arm64 --repo nexdrew/blitzy-cli
+   ```
+
+   On macOS, Gatekeeper quarantines the download and the ad-hoc signature won't
+   validate after transfer, so a binary you've chosen to trust needs:
+
+   ```sh
+   codesign --remove-signature blitzy-darwin-arm64
+   codesign --force --sign - blitzy-darwin-arm64
+   xattr -cr blitzy-darwin-arm64
+   chmod +x blitzy-darwin-arm64
+   ```
 
    Caveat: `--compile` embeds only the `impit` native binary that is **installed at build
    time**, so a binary must be built **on** (or with the optional dependency installed
@@ -228,6 +255,15 @@ There are two ways to ship this CLI, and they get `impit` to the user differentl
    for your platform" at runtime. To publish standalone binaries for every platform, run
    the compile step in a CI matrix — one runner per OS/arch (macOS arm64/x64, Linux
    x64/arm64, Windows x64) — and attach the outputs to a GitHub Release.
+
+3. **Homebrew tap.** `brew install nexdrew/tap/blitzy-cli` delivers the standalone
+   binary for the user's platform (macOS/Linux, arm64/x64) from
+   [nexdrew/homebrew-tap](https://github.com/nexdrew/homebrew-tap). The formula is
+   generated — `scripts/homebrew-formula.mjs` renders it from each release's asset
+   digests and the `update-homebrew-tap` release job pushes it to the tap; never edit
+   it by hand. Because brew fetches with curl, the download never receives the macOS
+   quarantine attribute, so none of the Gatekeeper handling above applies, and the
+   formula's sha256 pins correspond to the same attested release assets.
 
 ## Development
 
@@ -251,9 +287,15 @@ push to `main` updates a "Release PR" that accumulates the version bump and chan
 
 1. tags the version and creates the GitHub Release,
 2. publishes to npm with provenance via **OIDC Trusted Publishing** (no `NPM_TOKEN`), and
-3. compiles standalone binaries on a per-OS/arch runner matrix (Linux x64/arm64, macOS
-   x64/arm64, Windows x64) — each natively so `impit`'s platform binary is embedded — and
-   attaches them to the GitHub Release.
+3. compiles standalone binaries on a per-OS/arch runner matrix (Linux x64/arm64 glibc,
+   Linux x64 musl, macOS x64/arm64, Windows x64) — each natively so `impit`'s platform
+   binary is embedded — attests build provenance for each
+   (`actions/attest-build-provenance`, verifiable with
+   `gh attestation verify <file> --repo nexdrew/blitzy-cli`), and attaches them to the
+   GitHub Release, and
+4. regenerates `Formula/blitzy-cli.rb` in [nexdrew/homebrew-tap](https://github.com/nexdrew/homebrew-tap)
+   from the release's asset digests (`scripts/homebrew-formula.mjs` is the formula's
+   single source of truth — the file in the tap is always generated, never hand-edited).
 
 One-time setup:
 
@@ -261,6 +303,8 @@ One-time setup:
   package: repository `nexdrew/blitzy-cli`, workflow `release.yml`, environment `npm`.
 - In GitHub, create an **Environment named `npm`** (optionally with a protection/approval
   rule on releases).
+- Create a fine-grained PAT with **contents: write** on `nexdrew/homebrew-tap` and add
+  it to this repo as the **`TAP_GITHUB_TOKEN`** secret (used by the tap-update job).
 
 ## License
 
