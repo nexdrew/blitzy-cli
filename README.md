@@ -214,7 +214,7 @@ is provided for the day Blitzy allow-lists non-browser clients directly.
 
 ## Distribution
 
-There are two ways to ship this CLI, and they get `impit` to the user differently:
+There are three ways to ship this CLI, and they get `impit` to the user differently:
 
 1. **npm package (default).** `npm install -g blitzy-cli` installs a Node-compatible
    bundle (`dist/cli.js`, with `impit` kept external) plus `impit` itself; npm resolves
@@ -255,6 +255,15 @@ There are two ways to ship this CLI, and they get `impit` to the user differentl
    for your platform" at runtime. To publish standalone binaries for every platform, run
    the compile step in a CI matrix — one runner per OS/arch (macOS arm64/x64, Linux
    x64/arm64, Windows x64) — and attach the outputs to a GitHub Release.
+
+3. **Homebrew tap.** `brew install nexdrew/tap/blitzy-cli` delivers the standalone
+   binary for the user's platform (macOS/Linux, arm64/x64) from
+   [nexdrew/homebrew-tap](https://github.com/nexdrew/homebrew-tap). The formula is
+   generated — `scripts/homebrew-formula.mjs` renders it from each release's asset
+   digests and the `update-homebrew-tap` release job pushes it to the tap; never edit
+   it by hand. Because brew fetches with curl, the download never receives the macOS
+   quarantine attribute, so none of the Gatekeeper handling above applies, and the
+   formula's sha256 pins correspond to the same attested release assets.
 
 ## Development
 
