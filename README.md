@@ -225,10 +225,16 @@ There are two ways to ship this CLI, and they get `impit` to the user differentl
    `blitzy-linux-arm64`, `blitzy-linux-x64-musl`, `blitzy-windows-x64.exe`).
 
    **These binaries are not code-signed or notarized.** npm is the recommended install
-   path; only use a binary if you've decided you trust it (each one is built by this
-   repo's public release workflow — check the release's workflow run if in doubt). On
-   macOS, Gatekeeper quarantines the download and the ad-hoc signature won't validate
-   after transfer, so a binary you've chosen to trust needs:
+   path; only use a binary if you've decided you trust it. Each binary is built by this
+   repo's public release workflow and carries a GitHub build-provenance attestation —
+   verify what you downloaded before running it:
+
+   ```sh
+   gh attestation verify blitzy-darwin-arm64 --repo nexdrew/blitzy-cli
+   ```
+
+   On macOS, Gatekeeper quarantines the download and the ad-hoc signature won't
+   validate after transfer, so a binary you've chosen to trust needs:
 
    ```sh
    codesign --remove-signature blitzy-darwin-arm64
@@ -267,9 +273,12 @@ push to `main` updates a "Release PR" that accumulates the version bump and chan
 
 1. tags the version and creates the GitHub Release,
 2. publishes to npm with provenance via **OIDC Trusted Publishing** (no `NPM_TOKEN`), and
-3. compiles standalone binaries on a per-OS/arch runner matrix (Linux x64/arm64, macOS
-   x64/arm64, Windows x64) — each natively so `impit`'s platform binary is embedded — and
-   attaches them to the GitHub Release.
+3. compiles standalone binaries on a per-OS/arch runner matrix (Linux x64/arm64 glibc,
+   Linux x64 musl, macOS x64/arm64, Windows x64) — each natively so `impit`'s platform
+   binary is embedded — attests build provenance for each
+   (`actions/attest-build-provenance`, verifiable with
+   `gh attestation verify <file> --repo nexdrew/blitzy-cli`), and attaches them to the
+   GitHub Release.
 
 One-time setup:
 

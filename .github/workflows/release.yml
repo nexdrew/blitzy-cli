@@ -68,6 +68,10 @@ jobs:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write      # upload assets to the GitHub Release
+      id-token: write      # OIDC identity for Sigstore signing
+      attestations: write  # store the build-provenance attestation
     # impit ships a per-platform native binary, so each target must be compiled
     # on its own OS/arch runner (cross-compiling embeds the wrong impit binary).
     strategy:
@@ -99,6 +103,13 @@ jobs:
         shell: bash
         run: ./dist/${{ matrix.out }} --version
 
+      # Signed provenance linking the binary to this repo + workflow run.
+      # Users verify with: gh attestation verify <file> --repo nexdrew/blitzy-cli
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/${{ matrix.out }}
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
@@ -114,6 +125,10 @@ jobs:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write      # upload assets to the GitHub Release
+      id-token: write      # OIDC identity for Sigstore signing
+      attestations: write  # store the build-provenance attestation
     steps:
       - uses: actions/checkout@v7
 
@@ -124,6 +139,12 @@ jobs:
             bun build --compile ./src/cli.js --outfile dist/blitzy-linux-x64-musl &&
             ./dist/blitzy-linux-x64-musl --version
           '
+
+      # Signed provenance linking the binary to this repo + workflow run.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/blitzy-linux-x64-musl
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v3
