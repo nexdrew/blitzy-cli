@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/nexdrew/blitzy-cli/compare/v1.2.1...v1.2.2) (2026-07-31)
+
+
+### Bug Fixes
+
+* Install the shipped bun flavor per leg instead of downloading it mid-compile ([#13](https://github.com/nexdrew/blitzy-cli/issues/13)) ([7159327](https://github.com/nexdrew/blitzy-cli/commit/7159327d5e37c146931e73add1e2742b9e16cbd6))
+
 ## [1.2.1](https://github.com/nexdrew/blitzy-cli/compare/v1.2.0...v1.2.1) (2026-07-31)
 
 
