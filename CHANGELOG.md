@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/nexdrew/blitzy-cli/compare/v1.2.0...v1.2.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* Compile x64 binaries as Bun baseline builds (no AVX requirement) ([#11](https://github.com/nexdrew/blitzy-cli/issues/11)) ([5aeb9ea](https://github.com/nexdrew/blitzy-cli/commit/5aeb9ea37a11d9a46e082b6b4e8379ee2554dcaf))
+
 ## [1.2.0](https://github.com/nexdrew/blitzy-cli/compare/v1.1.0...v1.2.0) (2026-07-31)
 
 
