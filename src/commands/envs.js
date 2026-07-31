@@ -2,6 +2,7 @@
 
 const { deps } = require('../app')
 const { output, relTimeIso, table } = require('../format')
+const { fail } = require('../errors')
 
 async function doEnvs (argv, { api }) {
   if (argv.uuid) {
@@ -55,7 +56,7 @@ async function handle (argv, context, d) {
       output(argv, result.result, () => renderList(result))
     }
   } catch (err) {
-    return context.cliMessage(err.message)
+    return fail(argv, err, d.errio)
   }
 }
 

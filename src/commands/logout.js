@@ -2,6 +2,7 @@
 
 const { deps } = require('../app')
 const { output } = require('../format')
+const { fail } = require('../errors')
 
 async function doLogout (argv, { store, env = process.env }) {
   const had = !!(store.get('workosToken') || store.get('email'))
@@ -19,7 +20,7 @@ async function handle (argv, context, d) {
     const result = await doLogout(argv, d)
     output(argv, result, () => renderLogout(result))
   } catch (err) {
-    return context.cliMessage(err.message)
+    return fail(argv, err, d.errio)
   }
 }
 

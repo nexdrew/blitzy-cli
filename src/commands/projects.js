@@ -4,6 +4,7 @@ const { deps } = require('../app')
 const { output, relTime, pct, table } = require('../format')
 const { mapLimit } = require('../api')
 const { parseSubmodulePrs, repoFromPrUrl } = require('../gh')
+const { fail } = require('../errors')
 
 // gh enrichment is one-or-more subprocess calls per PR, so cap it to the most
 // recent PRs (prsFromRuns returns newest-first) to bound the cost.
@@ -14,11 +15,21 @@ async function doProjects (argv, { api, gh }) {
     const full = await api.getProjectFull(argv.uuid)
     const prs = prsFromRuns(full.runs)
     // Blitzy's API doesn't expose submodule PRs; they're only in the parent PR's
-    // GitHub body. Use gh to find them, unless disabled or gh isn't available.
-    const useGh = !argv['no-gh'] && gh && await gh.available()
+    // GitHub body. Use gh to find them, unless disabled, missing, or logged out.
+    const enabled = !argv['no-gh'] && !!gh
+    const available = enabled ? await gh.available() : null
+    const authenticated = available === true ? await gh.authenticated() : null
+    const useGh = authenticated === true
     // Mutating the sliced PR objects still updates the originals in `prs`.
     if (useGh) await attachSubmodulePrs(prs.slice(0, GH_ENRICH_LIMIT), gh)
-    return { mode: 'detail', project: full.project, repos: full.repos, prs, ghUsed: !!useGh }
+    const ghMeta = {
+      enabled,
+      available,
+      authenticated,
+      used: useGh,
+      truncatedAt: useGh && prs.length > GH_ENRICH_LIMIT ? GH_ENRICH_LIMIT : null
+    }
+    return { mode: 'detail', project: full.project, repos: full.repos, runs: full.runs, prs, gh: ghMeta, ghUsed: useGh }
   }
   const result = await api.listProjectsDetailed({
     page: argv.page,
@@ -112,7 +123,7 @@ function renderList ({ result }) {
 // so pad to 19 to guarantee a 2-space gap between label and value.
 const LABEL_WIDTH = 19
 
-function renderDetail ({ project: p, repos, runs, prs, ghUsed }) {
+function renderDetail ({ project: p, repos, runs, prs, gh, ghUsed }) {
   const cs = p.currentStatus || {}
   const m = p.meteringStats || (cs.metering) || {}
   const line = (label, value) => { if (value !== undefined && value !== null && value !== '') console.log(`${label.padEnd(LABEL_WIDTH)}${value}`) }
@@ -156,6 +167,9 @@ function renderDetail ({ project: p, repos, runs, prs, ghUsed }) {
       if (ghUsed && prList.length > GH_ENRICH_LIMIT) {
         console.log(`    (submodule PRs looked up for the ${GH_ENRICH_LIMIT} most recent PRs only)`)
       }
+      if (gh && gh.enabled && gh.available && gh.authenticated === false) {
+        console.log('    (gh installed but not authenticated — submodule PRs not looked up; run `gh auth login`)')
+      }
     } else {
       line('  PRs', 'none yet')
     }
@@ -172,13 +186,13 @@ async function handle (argv, context, d) {
   try {
     const result = await doProjects(argv, d)
     if (result.mode === 'detail') {
-      const json = { ...result.project, repos: result.repos, prs: result.prs }
+      const json = { ...result.project, repos: result.repos, runs: result.runs, prs: result.prs, gh: result.gh }
       output(argv, json, () => renderDetail(result))
     } else {
       output(argv, result.result, () => renderList(result))
     }
   } catch (err) {
-    return context.cliMessage(err.message)
+    return fail(argv, err, d.errio)
   }
 }
 

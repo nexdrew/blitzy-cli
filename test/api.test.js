@@ -197,3 +197,91 @@ test('BlitzyApiError carries status and code', async () => {
     expect(err.code).toBe(429)
   }
 })
+
+// --- v1.1: session refresh integration in platformToken ---
+
+const REFRESH_URL = 'https://example.test/auth/refresh'
+const expiredJwt = () => makeJwt({ exp: Math.floor(Date.now() / 1000) - 60 })
+
+test('platformToken refreshes an expired workos session before exchanging', async () => {
+  const store = new Store(new MemBacking({ workosToken: expiredJwt(), refreshToken: 'r1' }))
+  const exchanged = []
+  const { api } = apiWith({
+    'POST /auth/refresh': { status: 200, body: { workos_access_token: 'fresh-workos', refresh_token: 'r2' } },
+    'POST /auth': (url, init) => {
+      exchanged.push(init.headers.authorization)
+      return init.headers.authorization === 'Bearer fresh-workos'
+        ? { status: 200, body: { access_token: futureJwt() } }
+        : { status: 401, body: { message: 'Jwt is expired' } }
+    }
+  }, { store, env: { BLITZY_REFRESH_URL: REFRESH_URL } })
+
+  const token = await api.platformToken()
+  expect(token).toBeTruthy()
+  expect(exchanged).toEqual(['Bearer fresh-workos']) // never wasted a 401 on the dead token
+  expect(store.get('workosToken')).toBe('fresh-workos')
+  expect(store.get('refreshToken')).toBe('r2')
+})
+
+test('platformToken retries via refresh when the exchange 401s unexpectedly', async () => {
+  // Opaque workos token (no exp claim) revoked server-side: the pre-check can't
+  // see it, so the first exchange 401s and the refresh retry kicks in.
+  const store = new Store(new MemBacking({ workosToken: 'revoked-opaque', refreshToken: 'r1' }))
+  const { api } = apiWith({
+    'POST /auth/refresh': { status: 200, body: { workos_access_token: 'fresh-workos', refresh_token: 'r2' } },
+    'POST /auth': (url, init) => (init.headers.authorization === 'Bearer fresh-workos'
+      ? { status: 200, body: { access_token: futureJwt() } }
+      : { status: 401, body: { message: 'Jwt is expired' } })
+  }, { store, env: { BLITZY_REFRESH_URL: REFRESH_URL } })
+
+  const token = await api.platformToken()
+  expect(token).toBeTruthy()
+  expect(store.get('refreshToken')).toBe('r2')
+})
+
+test('a refresh response carrying a platform access_token skips the exchange', async () => {
+  const store = new Store(new MemBacking({ workosToken: expiredJwt(), refreshToken: 'r1' }))
+  const platform = futureJwt()
+  const exchanges = []
+  const { api } = apiWith({
+    // Default endpoint: no BLITZY_REFRESH_URL — {base}/auth/refresh is used.
+    'POST /auth/refresh': { status: 200, body: { access_token: platform, refresh_token: 'r2' } },
+    'POST /auth': () => { exchanges.push(1); return { status: 401, body: { message: 'should not be called' } } }
+  }, { store, env: {} })
+
+  const token = await api.platformToken()
+  expect(token).toBe(platform)
+  expect(exchanges).toHaveLength(0) // platform token came straight from the refresh
+  expect(store.get('platformToken')).toBe(platform)
+  expect(store.get('refreshToken')).toBe('r2')
+})
+
+test('platformToken reports session expiry as an auth error when refresh is unavailable', async () => {
+  const store = new Store(new MemBacking({ workosToken: 'revoked', refreshToken: 'r1' }))
+  const { api } = apiWith({
+    'POST /auth': { status: 401, body: { message: 'Jwt is expired' } }
+  }, { store, env: {} }) // no BLITZY_REFRESH_URL -> refresh disabled
+
+  try {
+    await api.platformToken()
+    throw new Error('should have thrown')
+  } catch (err) {
+    expect(err.message).toMatch(/Session expired\. Run `blitzy login` again\./)
+    expect(err.kind).toBe('auth')
+    expect(err.status).toBe(401)
+  }
+})
+
+test('platformToken flags an invalid BLITZY_TOKEN distinctly', async () => {
+  const { api } = apiWith({
+    'POST /auth': { status: 401, body: { message: 'Jwt is expired' } }
+  }, { env: { BLITZY_TOKEN: 'stale-env-token' } })
+
+  try {
+    await api.platformToken()
+    throw new Error('should have thrown')
+  } catch (err) {
+    expect(err.message).toMatch(/BLITZY_TOKEN is invalid or expired/)
+    expect(err.kind).toBe('auth')
+  }
+})

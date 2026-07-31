@@ -3,6 +3,7 @@
 const { deps } = require('../app')
 const prompt = require('../prompt')
 const { output } = require('../format')
+const { fail } = require('../errors')
 
 async function doLogin (argv, { api, store, io = {}, prompts = prompt }) {
   const isTty = io.isTty !== undefined ? io.isTty : process.stdin.isTTY
@@ -62,7 +63,7 @@ async function handle (argv, context, d) {
     const result = await doLogin(argv, d)
     output(argv, result.profile, () => renderLogin(result))
   } catch (err) {
-    return context.cliMessage(err.message)
+    return fail(argv, err, d.errio)
   }
 }
 

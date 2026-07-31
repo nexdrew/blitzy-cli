@@ -105,3 +105,29 @@ jobs:
           tag_name: ${{ needs.release-please.outputs.tag_name }}
           files: dist/${{ matrix.out }}
           fail_on_unmatched_files: true
+
+  # musl (Alpine) needs its own build: JS-based actions can't run inside an
+  # Alpine container, so compile via the official oven/bun:alpine image instead.
+  # This installs impit-linux-x64-musl, which --compile embeds.
+  build-binary-musl:
+    name: Binary (blitzy-linux-x64-musl)
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compile standalone musl binary in Alpine
+        run: |
+          docker run --rm -v "$PWD:/w" -w /w oven/bun:alpine sh -c '
+            bun install --frozen-lockfile &&
+            bun build --compile ./src/cli.js --outfile dist/blitzy-linux-x64-musl &&
+            ./dist/blitzy-linux-x64-musl --version
+          '
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: dist/blitzy-linux-x64-musl
+          fail_on_unmatched_files: true

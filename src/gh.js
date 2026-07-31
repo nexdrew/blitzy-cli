@@ -20,6 +20,7 @@ function runGh (args, { timeout = 15000, bin = 'gh' } = {}) {
 // A thin gh wrapper. `run` is injectable for tests.
 function createGh ({ run = runGh } = {}) {
   let availability
+  let authStatus
   return {
     // Cached: is the gh binary present and runnable?
     available () {
@@ -27,6 +28,14 @@ function createGh ({ run = runGh } = {}) {
         availability = run(['--version'], { timeout: 5000 }).then(() => true, () => false)
       }
       return availability
+    },
+    // Cached: is gh actually logged in? (`gh auth status` exits non-zero when
+    // not.) Distinguishes "no submodule PRs found" from "gh couldn't look".
+    authenticated () {
+      if (authStatus === undefined) {
+        authStatus = run(['auth', 'status'], { timeout: 5000 }).then(() => true, () => false)
+      }
+      return authStatus
     },
     // gh pr view <number> --repo <owner/name> --json <fields...>
     async prView (repo, number, fields) {

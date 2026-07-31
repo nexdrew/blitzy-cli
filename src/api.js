@@ -2,18 +2,22 @@
 
 const { createTransport, USER_AGENT } = require('./transport')
 const { jwtExpMs } = require('./jwt')
+const { refreshSession } = require('./refresh')
 
 const DEFAULT_BASE_URL = 'https://platform.api.blitzy.com/v1'
 // Refresh the 1h platform token a minute before it actually expires.
 const EXP_SKEW_MS = 60 * 1000
 
 class BlitzyApiError extends Error {
-  constructor (message, { status, code, body } = {}) {
+  // `kind` tags the error for typed exit codes ('auth' | 'not_found' | 'network');
+  // when omitted, src/errors.js classifies by HTTP status instead.
+  constructor (message, { status, code, body, kind } = {}) {
     super(message)
     this.name = 'BlitzyApiError'
     this.status = status
     this.code = code
     this.body = body
+    if (kind) this.kind = kind
   }
 }
 
@@ -60,14 +64,14 @@ class BlitzyApi {
         body: body !== undefined ? JSON.stringify(body) : undefined
       })
     } catch (err) {
-      throw new BlitzyApiError(`Network error: ${err.message}`, {})
+      throw new BlitzyApiError(`Network error: ${err.message}`, { kind: 'network' })
     }
 
     if (res.status === 403 && res.headers && res.headers.get && res.headers.get('cf-mitigated')) {
       throw new BlitzyApiError(
         'Blocked by Cloudflare bot protection. The default transport (impit) should pass; ' +
         'if you set BLITZY_TRANSPORT=fetch, unset it.',
-        { status: 403 }
+        { status: 403, kind: 'network' }
       )
     }
 
@@ -108,24 +112,64 @@ class BlitzyApi {
   //   1. BLITZY_TOKEN env var (treated as a workos_access_token) -> always exchanged
   //   2. cached, unexpired platform token from the store
   //   3. stored workos_access_token -> exchanged and cached
+  //      (refreshing the WorkOS session first when it's expired and a refresh
+  //       token is available -- see src/refresh.js)
   async platformToken () {
     const envToken = this.env.BLITZY_TOKEN
     if (envToken) {
-      const { access_token: accessToken } = await this.exchange(envToken)
-      return accessToken
+      try {
+        const { access_token: accessToken } = await this.exchange(envToken)
+        return accessToken
+      } catch (err) {
+        if (err.status === 401) {
+          throw new BlitzyApiError('BLITZY_TOKEN is invalid or expired.', { status: 401, kind: 'auth' })
+        }
+        throw err
+      }
     }
-    if (!this.store) throw new BlitzyApiError('Not logged in. Run `blitzy login` first.')
+    if (!this.store) throw new BlitzyApiError('Not logged in. Run `blitzy login` first.', { kind: 'auth' })
 
     const cached = this.store.get('platformToken')
     const exp = this.store.get('platformTokenExp')
     if (cached && exp && Date.now() < exp - EXP_SKEW_MS) return cached
 
-    const workos = this.store.get('workosToken')
-    if (!workos) throw new BlitzyApiError('Not logged in. Run `blitzy login` first.')
+    let workos = this.store.get('workosToken')
+    if (!workos) throw new BlitzyApiError('Not logged in. Run `blitzy login` first.', { kind: 'auth' })
 
-    const { access_token: accessToken } = await this.exchange(workos)
-    this.store.setPlatformToken(accessToken, jwtExpMs(accessToken))
-    return accessToken
+    // If the WorkOS token is visibly expired, try a refresh before wasting an
+    // exchange round trip on a guaranteed 401. A refresh response may carry a
+    // fresh platform token directly (skipping the exchange) and/or a fresh
+    // WorkOS token; refreshSession persists both.
+    const workosExp = jwtExpMs(workos)
+    if (workosExp && Date.now() >= workosExp) {
+      const refreshed = await this._refresh()
+      if (refreshed && refreshed.platformToken) return refreshed.platformToken
+      if (refreshed && refreshed.workosToken) workos = refreshed.workosToken
+    }
+
+    try {
+      const { access_token: accessToken } = await this.exchange(workos)
+      this.store.setPlatformToken(accessToken, jwtExpMs(accessToken))
+      return accessToken
+    } catch (err) {
+      // Exchange rejected the WorkOS token (e.g. revoked before its exp, or the
+      // pre-check above was skipped because exp was absent): one refresh retry.
+      if (err.status === 401) {
+        const refreshed = await this._refresh()
+        if (refreshed) {
+          if (refreshed.platformToken) return refreshed.platformToken
+          const { access_token: accessToken } = await this.exchange(refreshed.workosToken)
+          this.store.setPlatformToken(accessToken, jwtExpMs(accessToken))
+          return accessToken
+        }
+        throw new BlitzyApiError('Session expired. Run `blitzy login` again.', { status: 401, kind: 'auth' })
+      }
+      throw err
+    }
+  }
+
+  _refresh () {
+    return refreshSession({ client: this.client, store: this.store, env: this.env, baseUrl: this.baseUrl })
   }
 
   async authed (method, path, opts = {}) {
@@ -215,10 +259,10 @@ class BlitzyApi {
         body
       })
     } catch (err) {
-      throw new BlitzyApiError(`Network error: ${err.message}`, {})
+      throw new BlitzyApiError(`Network error: ${err.message}`, { kind: 'network' })
     }
     if (res.status === 403 && res.headers && res.headers.get && res.headers.get('cf-mitigated')) {
-      throw new BlitzyApiError('Blocked by Cloudflare bot protection.', { status: 403 })
+      throw new BlitzyApiError('Blocked by Cloudflare bot protection.', { status: 403, kind: 'network' })
     }
     const buffer = Buffer.from(await res.arrayBuffer())
     if (res.status >= 400) {
