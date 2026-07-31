@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/nexdrew/blitzy-cli/compare/v1.0.1...v1.1.0) (2026-07-31)
+
+
+### Features
+
+* Agent and scripting support ([#7](https://github.com/nexdrew/blitzy-cli/issues/7)) ([672bd07](https://github.com/nexdrew/blitzy-cli/commit/672bd07e926d2de91b560a1c91cb48b9719fd5fc))
+
 ## [1.0.1](https://github.com/nexdrew/blitzy-cli/compare/v1.0.0...v1.0.1) (2026-07-30)
 
 
