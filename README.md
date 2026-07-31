@@ -229,6 +229,11 @@ There are three ways to ship this CLI, and they get `impit` to the user differen
    (`blitzy-darwin-arm64`, `blitzy-darwin-x64`, `blitzy-linux-x64`,
    `blitzy-linux-arm64`, `blitzy-linux-x64-musl`, `blitzy-windows-x64.exe`).
 
+   The x64 binaries are Bun **baseline** builds (no AVX/AVX2 requirement), so they run
+   cleanly on older x86 CPUs and under Rosetta 2 on Apple Silicon — where an x86_64
+   Homebrew or shell would otherwise select an x64 build that warns about (and risks)
+   AVX-related crashes.
+
    **These binaries are not code-signed or notarized.** npm is the recommended install
    path; only use a binary if you've decided you trust it. Each binary is built by this
    repo's public release workflow and carries a GitHub build-provenance attestation —
