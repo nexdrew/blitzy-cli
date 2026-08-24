@@ -92,6 +92,7 @@ jobs:
           - { runner: macos-26-intel, out: blitzy-darwin-x64, bun-url: 'https://github.com/oven-sh/bun/releases/latest/download/bun-darwin-x64-baseline.zip' }
           - { runner: macos-latest, out: blitzy-darwin-arm64, bun-url: 'https://github.com/oven-sh/bun/releases/latest/download/bun-darwin-aarch64.zip' }
           - { runner: windows-latest, out: blitzy-windows-x64.exe, bun-url: 'https://github.com/oven-sh/bun/releases/latest/download/bun-windows-x64-baseline.zip' }
+          - { runner: windows-11-arm, out: blitzy-windows-arm64.exe, bun-url: 'https://github.com/oven-sh/bun/releases/latest/download/bun-windows-aarch64.zip' }
     steps:
       - uses: actions/checkout@v7
 
@@ -215,6 +216,50 @@ jobs:
           git add Formula/blitzy-cli.rb
           if git diff --cached --quiet; then
             echo "Formula unchanged; nothing to push."
+            exit 0
+          fi
+          git commit -m "blitzy-cli ${TAG}"
+          git push origin HEAD
+
+  # Regenerates bucket/blitzy-cli.json in nexdrew/scoop-bucket from this
+  # release's Windows asset digests. Waits on build-binaries so both Windows
+  # exes (x64/arm64) are uploaded with digests recorded. Requires the
+  # SCOOP_GITHUB_TOKEN secret: a fine-grained PAT with contents: write on
+  # nexdrew/scoop-bucket.
+  update-scoop-bucket:
+    name: Update Scoop bucket
+    needs: [release-please, build-binaries]
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Render manifest from release asset digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" \
+            | node scripts/scoop-manifest.mjs > blitzy-cli.json
+          node -e "JSON.parse(require('node:fs').readFileSync('blitzy-cli.json', 'utf8'))"
+          cat blitzy-cli.json
+
+      - name: Push manifest to nexdrew/scoop-bucket
+        env:
+          SCOOP_GITHUB_TOKEN: ${{ secrets.SCOOP_GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          git clone --depth 1 "https://x-access-token:${SCOOP_GITHUB_TOKEN}@github.com/nexdrew/scoop-bucket.git" bucket-repo
+          mkdir -p bucket-repo/bucket
+          cp blitzy-cli.json bucket-repo/bucket/blitzy-cli.json
+          cd bucket-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bucket/blitzy-cli.json
+          if git diff --cached --quiet; then
+            echo "Manifest unchanged; nothing to push."
             exit 0
           fi
           git commit -m "blitzy-cli ${TAG}"
