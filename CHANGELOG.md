@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/nexdrew/blitzy-cli/compare/v1.2.2...v1.3.0) (2026-08-24)
+
+
+### Features
+
+* Add teams command and --teams project filter ([#17](https://github.com/nexdrew/blitzy-cli/issues/17)) ([61a03b0](https://github.com/nexdrew/blitzy-cli/commit/61a03b0d4fd65d78777104d26248a5ffad76cdc1))
+* Add Windows arm64 binary and Scoop bucket publishing ([#15](https://github.com/nexdrew/blitzy-cli/issues/15)) ([47a6aa0](https://github.com/nexdrew/blitzy-cli/commit/47a6aa0edd00bb856b028416d81af3b17697659c))
+
 ## [1.2.2](https://github.com/nexdrew/blitzy-cli/compare/v1.2.1...v1.2.2) (2026-07-31)
 
 
