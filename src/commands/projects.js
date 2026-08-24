@@ -35,9 +35,23 @@ async function doProjects (argv, { api, gh }) {
     page: argv.page,
     limit: argv.limit,
     isArchived: argv.archived,
-    sort: argv.sort
+    sort: argv.sort,
+    teamIds: normalizeTeamIds(argv.teams)
   })
   return { mode: 'list', result }
+}
+
+// The API's teamIds filter takes team uuids plus the synthetic scopes PERSONAL
+// (unshared, owner-only projects) and ORGANIZATION (company-shared projects),
+// uppercase. Uppercase those two tokens so `--teams personal` works; anything
+// else passes through verbatim and the server stays the validator.
+function normalizeTeamIds (teams) {
+  if (typeof teams !== 'string') return undefined
+  const ids = teams.split(',')
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t) => (/^(personal|organization)$/i.test(t) ? t.toUpperCase() : t))
+  return ids.length ? ids.join(',') : undefined
 }
 
 // For each parent PR, read its GitHub body via gh, parse the "Submodule PR
@@ -208,6 +222,7 @@ module.exports = {
       .number('--limit <n>', { desc: 'Projects per page', defaultValue: 50 })
       .number('--page <n>', { desc: 'Page number', defaultValue: 1 })
       .string('--sort <field>', { desc: 'Sort field', defaultValue: '-updatedAt' })
+      .string('--teams <ids>', { desc: 'Filter by comma-delimited team uuids and/or PERSONAL, ORGANIZATION' })
       .boolean('--no-gh', { desc: 'Do not use the gh CLI to look up submodule PRs' })
   },
   run: (argv, context) => handle(argv, context, deps()),
@@ -217,5 +232,6 @@ module.exports = {
   renderDetail,
   primaryRepo,
   prsFromRuns,
+  normalizeTeamIds,
   GH_ENRICH_LIMIT
 }

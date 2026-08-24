@@ -8,6 +8,8 @@ const { MemBacking, stubClient, routeClient, makeJwt, makeResponse } = require('
 const profile = require('./fixtures/profile.json')
 const projectsList = require('./fixtures/projects-list.json')
 const projectDetail = require('./fixtures/project-detail.json')
+const teamsList = require('./fixtures/teams-list.json')
+const teamRoles = require('./fixtures/team-roles.json')
 
 const futureJwt = () => makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600 })
 
@@ -143,6 +145,41 @@ test('listProjectsDetailed tolerates a failed detail call', async () => {
   const out = await api.listProjectsDetailed()
   const failed = out.projects.find((p) => p.id === '5d6057a8-742d-40fa-b731-c9a6c20b6e61')
   expect(failed._error).toBeDefined()
+})
+
+test('listTeams and listTeamRoles hit the user/team endpoints', async () => {
+  const store = new Store(new MemBacking({ workosToken: 'wtok' }))
+  const { api, client } = apiWith({
+    'POST /auth': { status: 200, body: { access_token: futureJwt() } },
+    'GET /user/team/roles': { status: 200, body: teamRoles },
+    'GET /user/team': { status: 200, body: teamsList }
+  }, { store })
+
+  const teams = await api.listTeams()
+  expect(teams.teams).toHaveLength(2)
+  expect(teams.teams[0].members[1].email).toBe('uma.user@example.com')
+
+  const roles = await api.listTeamRoles()
+  expect(roles).toEqual(teamRoles)
+  expect(client.countOf('GET', '/user/team/roles')).toBe(1)
+})
+
+test('listProjects forwards teamIds and omits it when absent', async () => {
+  const store = new Store(new MemBacking({ workosToken: 'wtok' }))
+  const { api, client } = apiWith({
+    'POST /auth': { status: 200, body: { access_token: futureJwt() } },
+    'GET /projects': { status: 200, body: projectsList }
+  }, { store })
+
+  await api.listProjects({ teamIds: 'PERSONAL,028eeb91-e849-4ebd-bc61-0e9083cd0ff8' })
+  const filtered = client.calls.find((c) => c.url.includes('/projects?'))
+  // Comma is %2C-encoded by URLSearchParams, matching what the web app sends.
+  expect(filtered.url).toContain('teamIds=PERSONAL%2C028eeb91-e849-4ebd-bc61-0e9083cd0ff8')
+
+  await api.listProjects()
+  const unfiltered = client.calls[client.calls.length - 1]
+  expect(unfiltered.url).toContain('/projects?')
+  expect(unfiltered.url).not.toContain('teamIds')
 })
 
 test('getProjectFull returns detail even when repos/runs calls fail', async () => {

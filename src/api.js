@@ -207,8 +207,22 @@ class BlitzyApi {
     return this.authed('GET', `/environments/${id}`)
   }
 
-  listProjects ({ page = 1, limit = 20, isArchived = false, sort = '-updatedAt' } = {}) {
-    return this.authed('GET', '/projects', { query: { page, limit, isArchived, sort } })
+  // Teams the current user belongs to -> { teams: [{ id, companyId, name,
+  // isDefault, ownerId, memberCount, createdAt, updatedAt, members: [...] }],
+  // totalCount }. Unpaginated, members embedded; there is no single-team endpoint.
+  listTeams () {
+    return this.authed('GET', '/user/team')
+  }
+
+  // The current user's role in each team -> [{ role, teamId }] (bare array).
+  listTeamRoles () {
+    return this.authed('GET', '/user/team/roles')
+  }
+
+  // teamIds is a comma-delimited string of team uuids and/or the synthetic
+  // scopes PERSONAL and ORGANIZATION; omitted entirely when not filtering.
+  listProjects ({ page = 1, limit = 20, isArchived = false, sort = '-updatedAt', teamIds } = {}) {
+    return this.authed('GET', '/projects', { query: { page, limit, isArchived, sort, teamIds } })
   }
 
   getProject (id) {

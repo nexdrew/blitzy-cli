@@ -9,6 +9,7 @@ const logout = require('../src/commands/logout')
 const usage = require('../src/commands/usage')
 const rules = require('../src/commands/rules')
 const envs = require('../src/commands/envs')
+const teams = require('../src/commands/teams')
 const projects = require('../src/commands/projects')
 const download = require('../src/commands/download')
 
@@ -20,6 +21,8 @@ const envsList = require('./fixtures/envs-list.json')
 const envDetail = require('./fixtures/env-detail.json')
 const projectsList = require('./fixtures/projects-list.json')
 const projectDetail = require('./fixtures/project-detail.json')
+const teamsList = require('./fixtures/teams-list.json')
+const teamRoles = require('./fixtures/team-roles.json')
 
 // --- setup (flag definitions) ---
 
@@ -144,6 +147,49 @@ test('envs handle: list, detail, and error paths', async () => {
   expect(e.codes[0]).toBe(1)
 })
 
+// --- teams ---
+
+const teamsApi = () => ({ listTeams: async () => teamsList, listTeamRoles: async () => teamRoles })
+
+test('teams handle: list, detail, and error paths', async () => {
+  const listOut = await captureLog(() => teams.handle({}, fakeContext(), { api: teamsApi() }))
+  expect(listOut).toContain('Alpha Team')
+  expect(listOut).toContain('SUPER_ADMIN')
+  expect(listOut).toContain('2 shown, 2 total')
+
+  const detailOut = await captureLog(() => teams.handle({ uuid: '028eeb91-e849-4ebd-bc61-0e9083cd0ff8' }, fakeContext(), { api: teamsApi() }))
+  expect(detailOut).toContain('Beta Team')
+  expect(detailOut).toContain('Your role   MEMBER')
+  expect(detailOut).toContain('Owner       quin.lead@example.com')
+  expect(detailOut).toContain('uma.user@example.com')
+
+  const e = fakeErrio()
+  await teams.handle({}, fakeContext(), { api: { listTeams: async () => { throw new Error('nope') }, listTeamRoles: async () => teamRoles }, errio: e.io })
+  expect(e.lines[0]).toBe('nope')
+  expect(e.codes[0]).toBe(1)
+})
+
+test('teams detail: unknown uuid exits with the not-found code', async () => {
+  const e = fakeErrio()
+  await teams.handle({ uuid: 'ffffffff-0000-0000-0000-000000000000' }, fakeContext(), { api: teamsApi(), errio: e.io })
+  expect(e.lines[0]).toMatch(/Team not found/)
+  expect(e.codes[0]).toBe(3) // not_found errors get the typed exit code
+})
+
+test('teams tolerates a failed roles call (roles are enrichment only)', async () => {
+  const api = { listTeams: async () => teamsList, listTeamRoles: async () => { throw new Error('roles down') } }
+  const out = await captureLog(() => teams.handle({}, fakeContext(), { api }))
+  expect(out).toContain('Alpha Team')
+  expect(out).not.toContain('SUPER_ADMIN') // role column falls back to '-'
+})
+
+test('teams handle --json emits role-merged teams', async () => {
+  const out = await captureLog(() => teams.handle({ json: true }, fakeContext(), { api: teamsApi() }))
+  const parsed = JSON.parse(out)
+  expect(parsed.totalCount).toBe(2)
+  expect(parsed.teams.map((t) => t.role)).toEqual(['SUPER_ADMIN', 'MEMBER'])
+})
+
 // --- projects ---
 
 test('projects handle: list and json detail', async () => {
@@ -158,6 +204,18 @@ test('projects handle: list and json detail', async () => {
   const detailApi = { getProjectFull: async () => ({ project: projectDetail, repos: null, runs: null }) }
   const jsonOut = await captureLog(() => projects.handle({ uuid: 'x', json: true }, fakeContext(), { api: detailApi, gh: null }))
   expect(JSON.parse(jsonOut).name).toBe('AloraDL Native Port')
+})
+
+test('projects --teams normalizes scope tokens and passes teamIds through', async () => {
+  expect(projects.normalizeTeamIds('personal, Organization ,028eeb91-e849-4ebd-bc61-0e9083cd0ff8'))
+    .toBe('PERSONAL,ORGANIZATION,028eeb91-e849-4ebd-bc61-0e9083cd0ff8')
+  expect(projects.normalizeTeamIds(' , ')).toBeUndefined()
+  expect(projects.normalizeTeamIds(undefined)).toBeUndefined()
+
+  let seen
+  const api = { listProjectsDetailed: async (opts) => { seen = opts; return { projects: [], totalCount: 0 } } }
+  await captureLog(() => projects.handle({ teams: 'personal,d1d577c3-15c8-497c-80ae-f9179f9985a7' }, fakeContext(), { api, gh: null }))
+  expect(seen.teamIds).toBe('PERSONAL,d1d577c3-15c8-497c-80ae-f9179f9985a7')
 })
 
 test('projects handle routes errors to stderr with exit code', async () => {
@@ -229,6 +287,7 @@ test('renderDownload prints the formatted result', async () => {
 test('empty-list renders say so', async () => {
   expect(await captureLog(() => rules.renderList({ result: { rules: [] } }))).toContain('No rules found.')
   expect(await captureLog(() => envs.renderList({ result: { environments: [] } }))).toContain('No environments found.')
+  expect(await captureLog(() => teams.renderList({ result: { teams: [], totalCount: 0 } }))).toContain('No teams found.')
   expect(await captureLog(() => projects.renderList({ result: { projects: [] } }))).toContain('No projects found.')
 })
 
