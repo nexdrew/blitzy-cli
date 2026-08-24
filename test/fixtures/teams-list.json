@@ -1,0 +1,79 @@
+{
+  "teams": [
+    {
+      "id": "d1d577c3-15c8-497c-80ae-f9179f9985a7",
+      "companyId": "a5b48d76-f9a4-4c00-91cf-6b71905a87e7",
+      "name": "Alpha Team",
+      "isDefault": true,
+      "ownerId": "5f4c4475-d936-45cc-ac17-5cf400b292b1",
+      "memberCount": 3,
+      "createdAt": 1779995843,
+      "updatedAt": 1786720583,
+      "members": [
+        {
+          "userId": "5f4c4475-d936-45cc-ac17-5cf400b292b1",
+          "teamId": "d1d577c3-15c8-497c-80ae-f9179f9985a7",
+          "companyId": "a5b48d76-f9a4-4c00-91cf-6b71905a87e7",
+          "email": "ada.admin@example.com",
+          "firstName": "Ada",
+          "lastName": "Admin",
+          "role": "SUPER_ADMIN",
+          "joinedAt": 1779995843
+        },
+        {
+          "userId": "c2605c19-0d9f-4f8b-b6cb-eacc0a162449",
+          "teamId": "d1d577c3-15c8-497c-80ae-f9179f9985a7",
+          "companyId": "a5b48d76-f9a4-4c00-91cf-6b71905a87e7",
+          "email": "uma.user@example.com",
+          "firstName": "Uma",
+          "lastName": "User",
+          "role": "SUPER_ADMIN",
+          "joinedAt": 1779996006
+        },
+        {
+          "userId": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+          "teamId": "d1d577c3-15c8-497c-80ae-f9179f9985a7",
+          "companyId": "a5b48d76-f9a4-4c00-91cf-6b71905a87e7",
+          "email": "mel.member@example.com",
+          "firstName": "Mel",
+          "lastName": "Member",
+          "role": "MEMBER",
+          "joinedAt": 1780000000
+        }
+      ]
+    },
+    {
+      "id": "028eeb91-e849-4ebd-bc61-0e9083cd0ff8",
+      "companyId": "a5b48d76-f9a4-4c00-91cf-6b71905a87e7",
+      "name": "Beta Team",
+      "isDefault": false,
+      "ownerId": "d8e95055-0c45-4313-90d5-d630ff6c13c1",
+      "memberCount": 2,
+      "createdAt": 1786728910,
+      "updatedAt": 1786728910,
+      "members": [
+        {
+          "userId": "d8e95055-0c45-4313-90d5-d630ff6c13c1",
+          "teamId": "028eeb91-e849-4ebd-bc61-0e9083cd0ff8",
+          "companyId": "a5b48d76-f9a4-4c00-91cf-6b71905a87e7",
+          "email": "quin.lead@example.com",
+          "firstName": "Quin",
+          "lastName": "Lead",
+          "role": "SUPER_ADMIN",
+          "joinedAt": 1786728910
+        },
+        {
+          "userId": "c2605c19-0d9f-4f8b-b6cb-eacc0a162449",
+          "teamId": "028eeb91-e849-4ebd-bc61-0e9083cd0ff8",
+          "companyId": "a5b48d76-f9a4-4c00-91cf-6b71905a87e7",
+          "email": "uma.user@example.com",
+          "firstName": "Uma",
+          "lastName": "User",
+          "role": "SUPER_ADMIN",
+          "joinedAt": 1786729000
+        }
+      ]
+    }
+  ],
+  "totalCount": 2
+}

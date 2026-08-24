@@ -18,6 +18,7 @@ sywac
   .command(require('./commands/projects'))
   .command(require('./commands/rules'))
   .command(require('./commands/envs'))
+  .command(require('./commands/teams'))
   .command(require('./commands/download'))
   .command(require('./commands/usage'))
   .showHelpByDefault()

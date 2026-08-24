@@ -34,6 +34,7 @@ Commands:
   projects [uuid]  List projects, or show details for one by uuid
   rules [uuid]     List reusable rules, or show one rule's full content by uuid
   envs [uuid]      List environments, or show one environment's setup by uuid
+  teams [uuid]     List teams you belong to, or show one team's members by uuid
   download <uuid>  Download generated project artifacts
   usage            Show subscription usage against quota
 
@@ -42,6 +43,7 @@ Project options (projects):
   --limit <n>      Projects per page (default 50)
   --page <n>       Page number (default 1)
   --sort <field>   Sort field (default -updatedAt)
+  --teams <ids>    Filter by comma-delimited team uuids and/or PERSONAL, ORGANIZATION
   --no-gh          Don't use the gh CLI to look up submodule PRs
 
 Download options (download):
@@ -102,13 +104,24 @@ blitzy rules                                           # list reusable rules
 blitzy rules ce7a92db-affa-4520-9794-0ebaba84c23d      # one rule + its full content
 blitzy envs                                            # list environments
 blitzy envs 4cd123bf-54b5-4857-a0b1-2a18696c55bb       # one env + its setup instructions
+blitzy teams                                           # list your teams (with your role)
+blitzy teams d1d577c3-15c8-497c-80ae-f9179f9985a7      # one team + its member roster
 blitzy usage
 ```
 
-`rules` and `envs` mirror `projects`: no argument lists them; a uuid shows the details.
-The detail views print the rule's full content and the environment's setup instructions,
-variables, and which projects use it — handy for deciding which rules/environments to
-attach when scoping a new project.
+`rules`, `envs`, and `teams` mirror `projects`: no argument lists them; a uuid shows the
+details. The detail views print the rule's full content, the environment's setup
+instructions, variables, and which projects use it, and the team's member roster —
+handy for deciding which rules/environments to attach when scoping a new project.
+
+Filter the project list by team — comma-delimited team uuids and/or the synthetic
+scopes `PERSONAL` (your unshared projects) and `ORGANIZATION` (company-shared):
+
+```sh
+blitzy projects --teams PERSONAL                                 # only your unshared projects
+blitzy projects --teams d1d577c3-15c8-497c-80ae-f9179f9985a7     # one team's projects
+blitzy projects --teams personal,organization                    # scopes are case-insensitive
+```
 
 Add `--json` to any command to get the raw API response for scripting:
 
