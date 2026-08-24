@@ -214,7 +214,7 @@ is provided for the day Blitzy allow-lists non-browser clients directly.
 
 ## Distribution
 
-There are three ways to ship this CLI, and they get `impit` to the user differently:
+There are four ways to ship this CLI, and they get `impit` to the user differently:
 
 1. **npm package (default).** `npm install -g blitzy-cli` installs a Node-compatible
    bundle (`dist/cli.js`, with `impit` kept external) plus `impit` itself; npm resolves
@@ -227,7 +227,8 @@ There are three ways to ship this CLI, and they get `impit` to the user differen
    binary for their platform. Release binaries are attached to each
    [GitHub Release](https://github.com/nexdrew/blitzy-cli/releases)
    (`blitzy-darwin-arm64`, `blitzy-darwin-x64`, `blitzy-linux-x64`,
-   `blitzy-linux-arm64`, `blitzy-linux-x64-musl`, `blitzy-windows-x64.exe`).
+   `blitzy-linux-arm64`, `blitzy-linux-x64-musl`, `blitzy-windows-x64.exe`,
+   `blitzy-windows-arm64.exe`).
 
    The x64 binaries are Bun **baseline** builds (no AVX/AVX2 requirement), so they run
    cleanly on older x86 CPUs and under Rosetta 2 on Apple Silicon — where an x86_64
@@ -259,7 +260,7 @@ There are three ways to ship this CLI, and they get `impit` to the user differen
    builds without error but produces a binary that throws "native bindings not compiled
    for your platform" at runtime. To publish standalone binaries for every platform, run
    the compile step in a CI matrix — one runner per OS/arch (macOS arm64/x64, Linux
-   x64/arm64, Windows x64) — and attach the outputs to a GitHub Release.
+   x64/arm64, Windows x64/arm64) — and attach the outputs to a GitHub Release.
 
 3. **Homebrew tap.** `brew install nexdrew/tap/blitzy-cli` delivers the standalone
    binary for the user's platform (macOS/Linux, arm64/x64) from
@@ -269,6 +270,21 @@ There are three ways to ship this CLI, and they get `impit` to the user differen
    it by hand. Because brew fetches with curl, the download never receives the macOS
    quarantine attribute, so none of the Gatekeeper handling above applies, and the
    formula's sha256 pins correspond to the same attested release assets.
+
+4. **Scoop bucket (Windows).**
+
+   ```powershell
+   scoop bucket add nexdrew https://github.com/nexdrew/scoop-bucket
+   scoop install nexdrew/blitzy-cli
+   ```
+
+   Delivers the standalone Windows binary (x64 or arm64) from
+   [nexdrew/scoop-bucket](https://github.com/nexdrew/scoop-bucket). The manifest is
+   generated — `scripts/scoop-manifest.mjs` renders it from each release's asset
+   digests and the `update-scoop-bucket` release job pushes it to the bucket; never
+   edit it by hand. Scoop installs per-user (no admin rights), keeps the exe
+   byte-identical to the attested release asset (only the `blitzy` shim is added),
+   and the manifest's hashes pin the same attested assets as the Homebrew formula.
 
 ## Development
 
@@ -293,14 +309,17 @@ push to `main` updates a "Release PR" that accumulates the version bump and chan
 1. tags the version and creates the GitHub Release,
 2. publishes to npm with provenance via **OIDC Trusted Publishing** (no `NPM_TOKEN`), and
 3. compiles standalone binaries on a per-OS/arch runner matrix (Linux x64/arm64 glibc,
-   Linux x64 musl, macOS x64/arm64, Windows x64) — each natively so `impit`'s platform
-   binary is embedded — attests build provenance for each
+   Linux x64 musl, macOS x64/arm64, Windows x64/arm64) — each natively so `impit`'s
+   platform binary is embedded — attests build provenance for each
    (`actions/attest-build-provenance`, verifiable with
    `gh attestation verify <file> --repo nexdrew/blitzy-cli`), and attaches them to the
-   GitHub Release, and
+   GitHub Release,
 4. regenerates `Formula/blitzy-cli.rb` in [nexdrew/homebrew-tap](https://github.com/nexdrew/homebrew-tap)
    from the release's asset digests (`scripts/homebrew-formula.mjs` is the formula's
-   single source of truth — the file in the tap is always generated, never hand-edited).
+   single source of truth — the file in the tap is always generated, never hand-edited),
+   and
+5. regenerates `bucket/blitzy-cli.json` in [nexdrew/scoop-bucket](https://github.com/nexdrew/scoop-bucket)
+   the same way (`scripts/scoop-manifest.mjs` is the manifest's single source of truth).
 
 One-time setup:
 
@@ -310,6 +329,8 @@ One-time setup:
   rule on releases).
 - Create a fine-grained PAT with **contents: write** on `nexdrew/homebrew-tap` and add
   it to this repo as the **`TAP_GITHUB_TOKEN`** secret (used by the tap-update job).
+- Create a fine-grained PAT with **contents: write** on `nexdrew/scoop-bucket` and add
+  it to this repo as the **`SCOOP_GITHUB_TOKEN`** secret (used by the bucket-update job).
 
 ## License
 
