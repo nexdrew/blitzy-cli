@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/nexdrew/blitzy-cli/compare/v1.3.0...v1.3.1) (2026-08-25)
+
+
+### Documentation
+
+* Add installed-binary attestation verification for Homebrew and Scoop ([#18](https://github.com/nexdrew/blitzy-cli/issues/18)) ([8c4c21e](https://github.com/nexdrew/blitzy-cli/commit/8c4c21e1bcb4edd3d40aa3a17ed7d6745970f8f2))
+
 ## [1.3.0](https://github.com/nexdrew/blitzy-cli/compare/v1.2.2...v1.3.0) (2026-08-24)
 
 
