@@ -282,7 +282,15 @@ There are four ways to ship this CLI, and they get `impit` to the user different
    digests and the `update-homebrew-tap` release job pushes it to the tap; never edit
    it by hand. Because brew fetches with curl, the download never receives the macOS
    quarantine attribute, so none of the Gatekeeper handling above applies, and the
-   formula's sha256 pins correspond to the same attested release assets.
+   formula's sha256 pins correspond to the same attested release assets. Verify the
+   installed binary at any time:
+
+   ```sh
+   gh attestation verify "$(command -v blitzy)" --repo nexdrew/blitzy-cli
+   ```
+
+   (`command -v` resolves the brew symlink and, unlike `$(brew --prefix)/bin/blitzy`,
+   works on machines with more than one Homebrew prefix.)
 
 4. **Scoop bucket (Windows).**
 
@@ -298,6 +306,11 @@ There are four ways to ship this CLI, and they get `impit` to the user different
    edit it by hand. Scoop installs per-user (no admin rights), keeps the exe
    byte-identical to the attested release asset (only the `blitzy` shim is added),
    and the manifest's hashes pin the same attested assets as the Homebrew formula.
+   Verify the installed exe at any time (on arm64, verify `blitzy-windows-arm64.exe`):
+
+   ```powershell
+   gh attestation verify "$(scoop prefix blitzy-cli)\blitzy-windows-x64.exe" --repo nexdrew/blitzy-cli
+   ```
 
 ## Development
 
