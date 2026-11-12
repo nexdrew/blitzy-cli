@@ -13,7 +13,7 @@ const { jwtExpMs } = require('./jwt')
 //
 // whose response may carry any of:
 //   access_token         a fresh ~1h PLATFORM token (usable directly)
-//   workos_access_token  a fresh ~24h WorkOS access token
+//   workos_access_token  a fresh ~30min WorkOS access token (~24h before 2026-11)
 //   refresh_token        the ROTATED refresh token
 //
 // (The bundle also embeds WorkOS AuthKit's public client — POST
@@ -23,8 +23,8 @@ const { jwtExpMs } = require('./jwt')
 // overrides the endpoint if it ever moves.)
 //
 // Semantics:
-//   1. Live-verified 2026-07-30: Blitzy's proxy currently returns a STABLE
-//      refresh token (two consecutive refreshes succeeded with the same one).
+//   1. Live-verified 2026-07-30 and again 2026-11-12: Blitzy's proxy returns a
+//      STABLE refresh token (two consecutive refreshes succeeded with the same one).
 //      The code still handles rotation defensively — WorkOS supports rotating
 //      single-use refresh tokens, and Blitzy could enable that any time — by
 //      persisting whatever the response carries before returning.

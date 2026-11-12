@@ -64,21 +64,34 @@ Global Options:
 
 ### Log in
 
+Blitzy sign-in uses a code that Blitzy sends to your email. There is no password.
+
 ```sh
 blitzy login
 # Work email: you@company.com
-# Password: ********
+# Sign-in code sent to you@company.com: 123456
 # Logged in as You <you@company.com> at Your Company.
 ```
 
-Credentials are stored with [configstore](https://github.com/yeoman/configstore) at
-`~/.config/configstore/blitzy-cli.json` (mode `0600`). Your password is never stored.
+Scripts and agents have no interactive terminal. For these, do the login in two steps:
 
-Login exchanges your email/password for a WorkOS access token (~24h) and, from that, a
-short-lived platform token (~1h) that is refreshed automatically as you run commands.
-Login also stores a refresh token, and the CLI uses it to renew the whole session
-automatically when the 24h token expires (the same `/auth/refresh` endpoint the Blitzy
-web app uses) — you only need `blitzy login` again if the refresh itself is rejected.
+```sh
+blitzy login --email you@company.com                 # Step 1: Blitzy sends the code
+blitzy login --email you@company.com --code 123456   # Step 2: complete the login
+```
+
+The CLI stores credentials with [configstore](https://github.com/yeoman/configstore) at
+`~/.config/configstore/blitzy-cli.json` (mode `0600`). The CLI never stores the sign-in code.
+
+A login gives the CLI three tokens:
+
+- A WorkOS access token (about 30 minutes).
+- A platform token (about 1 hour).
+- A refresh token.
+
+The CLI uses the refresh token to renew the other two tokens automatically (the same
+`/auth/refresh` endpoint that the Blitzy web app uses). Run `blitzy login` again only if
+Blitzy rejects the refresh.
 
 Check your auth state without touching the network (handy for scripts and agents):
 
@@ -87,12 +100,35 @@ blitzy auth          # human-readable status; exit code 2 when not authenticated
 blitzy auth --json   # {"authenticated":…,"source":…,"workosExpiresAt":…,…}
 ```
 
-If your account uses SSO (e.g. "Continue with Microsoft"), interactive login isn't
-supported yet — sign in through the browser and pass the token directly:
+#### Log in with browser tokens
+
+Use this procedure if you cannot use the email code (for example, your account uses SSO):
+
+1. Sign in at <https://platform.blitzy.com>.
+2. Open the browser developer tools.
+3. Go to **Application > Local Storage > `https://platform.blitzy.com`**.
+4. Copy the values of `workos_session_token` and `workos_refresh_token`.
+5. Run `blitzy login --token`. The CLI asks for the two tokens and does not show them:
 
 ```sh
-blitzy login --token <workos-access-token>
+blitzy login --token
+# Access token (workos_session_token):
+# Refresh token (workos_refresh_token, press Enter to skip):
+# Logged in as You <you@company.com> at Your Company.
 ```
+
+The refresh token is optional. Without it, the session cannot renew itself and ends after
+90 minutes at most.
+
+You can also give the tokens as flag values, for example in a script. The values are then
+visible in the shell history and in the process list:
+
+```sh
+blitzy login --token <workos_session_token> --refresh-token <workos_refresh_token>
+```
+
+The browser and the CLI then share one session. If you sign out in the browser, the CLI
+session can also end.
 
 ### Look around
 
@@ -207,7 +243,7 @@ The CLI is built to be driven by scripts and AI agents:
 
 | Variable            | Purpose                                                                 |
 | ------------------- | ----------------------------------------------------------------------- |
-| `BLITZY_TOKEN`      | A WorkOS access token to authenticate with, overriding stored creds. Useful for CI. |
+| `BLITZY_TOKEN`      | A WorkOS access token that overrides stored credentials. It expires after about 30 minutes and cannot renew itself. |
 | `BLITZY_API_URL`    | Override the API base URL (default `https://platform.api.blitzy.com/v1`). |
 | `BLITZY_TRANSPORT`  | `impit` (default) or `fetch`. See below.                                |
 | `BLITZY_REFRESH_URL` | Override the session-refresh endpoint (default `{BLITZY_API_URL}/auth/refresh`). |

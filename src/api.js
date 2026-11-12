@@ -83,21 +83,29 @@ class BlitzyApi {
 
     if (res.status >= 400) {
       const message = (json && (json.message || json.error)) || `HTTP ${res.status}`
-      throw new BlitzyApiError(message, { status: res.status, code: json && json.code, body: json })
+      // Gateway errors carry { code, message }; platform errors carry { error, errorCode }.
+      throw new BlitzyApiError(message, { status: res.status, code: json && (json.errorCode || json.code), body: json })
     }
     return json
   }
 
   // --- unauthenticated auth endpoints ---
 
-  identify (email) {
-    return this.request('GET', '/auth/identify', { query: { email } })
+  // Blitzy removed password sign-in (/auth/identify and /auth/login) in 2026-11.
+  // Sign-in is now an email code, the same flow the web app uses.
+
+  // POST /v1/auth/magic-link { email }
+  //   -> 202 { message, request_id, resend_available_at }
+  // Blitzy sends an email that contains a 6-digit code.
+  requestCode (email) {
+    return this.request('POST', '/auth/magic-link', { body: { email } })
   }
 
-  // POST /v1/auth/login { email, password }
-  //   -> { refresh_token, user_id, workos_access_token }
-  login (email, password) {
-    return this.request('POST', '/auth/login', { body: { email, password } })
+  // POST /v1/auth/magic-link/verify-code { email, code }
+  //   -> { refresh_token, user_id, workos_access_token, next_step: 'signed_in', ... }
+  // A rejected code gives { error, errorCode, attempts_left }.
+  verifyCode (email, code) {
+    return this.request('POST', '/auth/magic-link/verify-code', { body: { email, code } })
   }
 
   // POST /v1/auth  (Authorization: Bearer <workos_access_token>)

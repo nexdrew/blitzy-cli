@@ -33,10 +33,15 @@ sywac
   // which is undefined under some entry points and throws.
   .version('-v, --version', { group: 'Global Options:', desc: 'Show version number', version: pkg.version })
 
-  .outputSettings({ maxWidth: 101, showHelpOnError: false })
+  // maxWidth 108 is the smallest width at which no command or flag description
+  // wraps onto a second line (the widest help texts are `login` and `download`).
+  .outputSettings({ maxWidth: 108, showHelpOnError: false })
   .style(sywacStyleBasic)
-  .epilogue('Set BLITZY_TOKEN to authenticate without `blitzy login`. Docs: https://github.com/nexdrew/blitzy-cli')
-  .example('$0 login', { desc: 'Authenticate with your Blitzy work email and password' })
+  .epilogue(
+    'BLITZY_TOKEN overrides the stored login with a WorkOS access token (valid about 30 minutes).\n' +
+    'Docs: https://github.com/nexdrew/blitzy-cli'
+  )
+  .example('$0 login', { desc: 'Authenticate with your Blitzy work email and a sign-in code' })
   .example('$0 projects', { desc: 'List your projects' })
   .example('$0 projects 50930af1-5165-41e6-89a3-7d4445ba4593', { desc: 'Show one project' })
 

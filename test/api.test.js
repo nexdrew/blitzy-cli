@@ -20,14 +20,14 @@ function apiWith (routes, { store, env } = {}) {
 }
 
 test('request throws BlitzyApiError with server message on 4xx', async () => {
-  const { api } = apiWith({ 'GET /auth/identify': { status: 401, body: { message: 'Jwt is missing', code: 401 } } })
-  await expect(api.identify('a@b.com')).rejects.toThrow('Jwt is missing')
+  const { api } = apiWith({ 'POST /auth/magic-link': { status: 401, body: { message: 'Jwt is missing', code: 401 } } })
+  await expect(api.requestCode('a@b.com')).rejects.toThrow('Jwt is missing')
 })
 
 test('request wraps a transport failure as a network BlitzyApiError', async () => {
   const client = { fetch: () => Promise.reject(new Error('ECONNREFUSED')) }
   const api = new BlitzyApi({ client, env: {} })
-  await expect(api.identify('a@b.com')).rejects.toThrow(/Network error: ECONNREFUSED/)
+  await expect(api.requestCode('a@b.com')).rejects.toThrow(/Network error: ECONNREFUSED/)
 })
 
 test('downloadDocument wraps a transport failure as a network error', async () => {
@@ -44,24 +44,27 @@ test('downloadDocument wraps a transport failure as a network error', async () =
 test('request surfaces a Cloudflare challenge distinctly', async () => {
   const client = stubClient(() => ({ status: 403, body: '<html>challenge</html>', headers: { 'cf-mitigated': 'challenge' } }))
   const api = new BlitzyApi({ client, env: {} })
-  await expect(api.identify('a@b.com')).rejects.toThrow(/Cloudflare/)
+  await expect(api.requestCode('a@b.com')).rejects.toThrow(/Cloudflare/)
 })
 
-test('identify sends the email as a query param', async () => {
-  const { api, client } = apiWith({ 'GET /auth/identify': { status: 200, body: { auth_mechanism: 'Password', user_exists: true } } })
-  await api.identify('andrew.goode@livtech.com')
-  expect(client.calls[0].url).toContain('email=andrew.goode%40livtech.com')
-})
-
-test('login posts email and password', async () => {
+test('requestCode posts the email to the magic-link endpoint', async () => {
   const { api, client } = apiWith({
-    'POST /auth/login': (url, init) => {
-      const body = JSON.parse(init.body)
-      expect(body).toEqual({ email: 'a@b.com', password: 'secret' })
-      return { status: 200, body: { refresh_token: 'r', user_id: 'user_1', workos_access_token: 'w' } }
+    'POST /auth/magic-link': { status: 202, body: { message: 'Check your inbox', request_id: 'req_1' } }
+  })
+  const out = await api.requestCode('a@b.com')
+  expect(out.message).toBe('Check your inbox')
+  expect(new URL(client.calls[0].url).pathname).toBe('/v1/auth/magic-link')
+  expect(JSON.parse(client.calls[0].init.body)).toEqual({ email: 'a@b.com' })
+})
+
+test('verifyCode posts email and code', async () => {
+  const { api, client } = apiWith({
+    'POST /auth/magic-link/verify-code': (url, init) => {
+      expect(JSON.parse(init.body)).toEqual({ email: 'a@b.com', code: '012345' })
+      return { status: 200, body: { next_step: 'signed_in', refresh_token: 'r', user_id: 'user_1', workos_access_token: 'w' } }
     }
   })
-  const out = await api.login('a@b.com', 'secret')
+  const out = await api.verifyCode('a@b.com', '012345')
   expect(out.workos_access_token).toBe('w')
   expect(client.calls[0].init.method).toBe('POST')
 })
@@ -224,14 +227,28 @@ test('mapLimit preserves order and respects the concurrency cap', async () => {
 })
 
 test('BlitzyApiError carries status and code', async () => {
-  const { api } = apiWith({ 'GET /auth/identify': { status: 429, body: { message: 'slow down', code: 429 } } })
+  const { api } = apiWith({ 'POST /auth/magic-link': { status: 429, body: { message: 'slow down', code: 429 } } })
   try {
-    await api.identify('a@b.com')
+    await api.requestCode('a@b.com')
     throw new Error('should have thrown')
   } catch (err) {
     expect(err).toBeInstanceOf(BlitzyApiError)
     expect(err.status).toBe(429)
     expect(err.code).toBe(429)
+  }
+})
+
+test('BlitzyApiError reads the platform error shape { error, errorCode }', async () => {
+  const body = { attempts_left: 9, error: 'This code is invalid or has expired', errorCode: 'CODE_INVALID' }
+  const { api } = apiWith({ 'POST /auth/magic-link/verify-code': { status: 400, body } })
+  try {
+    await api.verifyCode('a@b.com', '000000')
+    throw new Error('should have thrown')
+  } catch (err) {
+    expect(err.message).toBe('This code is invalid or has expired')
+    expect(err.status).toBe(400)
+    expect(err.code).toBe('CODE_INVALID')
+    expect(err.body.attempts_left).toBe(9)
   }
 })
 

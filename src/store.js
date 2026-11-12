@@ -3,7 +3,7 @@
 const Configstore = require('configstore')
 const pkg = require('../package.json')
 
-// Persisted credential keys. The password is NEVER stored.
+// Persisted credential keys. The sign-in code is NEVER stored.
 const KEYS = ['email', 'userId', 'workosToken', 'refreshToken', 'platformToken', 'platformTokenExp']
 
 class Store {
