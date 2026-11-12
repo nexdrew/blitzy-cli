@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/nexdrew/blitzy-cli/compare/v1.3.1...v1.4.0) (2026-11-12)
+
+
+### Features
+
+* Replace password login with email code and add token prompts ([#20](https://github.com/nexdrew/blitzy-cli/issues/20)) ([39edbe7](https://github.com/nexdrew/blitzy-cli/commit/39edbe7b735f91117ffcad23daa0d2ff172244bd))
+
 ## [1.3.1](https://github.com/nexdrew/blitzy-cli/compare/v1.3.0...v1.3.1) (2026-08-25)
 
 
