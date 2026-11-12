@@ -57,6 +57,13 @@ test('login handle routes errors to stderr with exit code', async () => {
   expect(e.codes[0]).toBe(1)
 })
 
+test('login handle prints the code-sent result as JSON with --json', async () => {
+  const api = { requestCode: async () => ({ message: 'Check your inbox' }) }
+  const d = { api, store: { get: () => null }, io: { isTty: false } }
+  const out = await captureLog(() => login.handle({ email: 'a@b.com', json: true }, fakeContext(), d))
+  expect(JSON.parse(out)).toEqual({ codeSent: true, email: 'a@b.com' })
+})
+
 test('renderLogin falls back gracefully with a sparse profile', async () => {
   const out = await captureLog(() => login.renderLogin({ profile: { email: 'x@y.com' } }))
   expect(out).toBe('Logged in as x@y.com.')

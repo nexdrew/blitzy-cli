@@ -36,7 +36,7 @@ sywac
   .outputSettings({ maxWidth: 101, showHelpOnError: false })
   .style(sywacStyleBasic)
   .epilogue('Set BLITZY_TOKEN to authenticate without `blitzy login`. Docs: https://github.com/nexdrew/blitzy-cli')
-  .example('$0 login', { desc: 'Authenticate with your Blitzy work email and password' })
+  .example('$0 login', { desc: 'Authenticate with your Blitzy work email and a sign-in code' })
   .example('$0 projects', { desc: 'List your projects' })
   .example('$0 projects 50930af1-5165-41e6-89a3-7d4445ba4593', { desc: 'Show one project' })
 

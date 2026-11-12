@@ -42,37 +42,124 @@ test('login token path stores the token and validates via profile', async () => 
   expect(out).toContain('Logged in as Andrew Goode <andrew.goode@livtech.com> at LivTech.')
 })
 
-test('login password path runs identify -> login -> profile and stores the session', async () => {
+test('login token path with --refresh-token stores both tokens', async () => {
   const { api, store } = setup({
-    'GET /auth/identify': { status: 200, body: { auth_mechanism: 'Password', sso_configured: false, user_exists: true } },
-    'POST /auth/login': { status: 200, body: { refresh_token: 'rtok', user_id: 'user_1', workos_access_token: 'wtok' } },
     'POST /auth': { status: 200, body: { access_token: futureJwt() } },
     'GET /user/profile': { status: 200, body: profile }
   })
-  const prompts = { promptLine: async () => 'andrew.goode@livtech.com', promptHidden: async () => 'secret' }
+  await login.doLogin({ token: 'wtok', 'refresh-token': 'rtok' }, { api, store, io: { isTty: false } })
+  expect(store.get('workosToken')).toBe('wtok')
+  expect(store.get('refreshToken')).toBe('rtok')
+})
+
+test('login token path without --refresh-token drops a refresh token from an earlier login', async () => {
+  const { api, store } = setup({
+    'POST /auth': { status: 200, body: { access_token: futureJwt() } },
+    'GET /user/profile': { status: 200, body: profile }
+  }, { backing: { workosToken: 'old-wtok', refreshToken: 'old-rtok' } })
+  await login.doLogin({ token: 'wtok' }, { api, store, io: { isTty: false } })
+  expect(store.get('workosToken')).toBe('wtok')
+  expect(store.get('refreshToken')).toBeFalsy()
+})
+
+test('login rejects --refresh-token without --token', async () => {
+  const { api, store, client } = setup({})
+  await expect(
+    login.doLogin({ 'refresh-token': 'rtok' }, { api, store, io: { isTty: true } })
+  ).rejects.toThrow(/together with --token/)
+  expect(client.calls).toHaveLength(0)
+})
+
+const codeRoutes = (verify) => ({
+  'POST /auth/magic-link': { status: 202, body: { message: 'Check your inbox' } },
+  'POST /auth/magic-link/verify-code': verify || { status: 200, body: { next_step: 'signed_in', refresh_token: 'rtok', user_id: 'user_1', workos_access_token: 'wtok' } },
+  'POST /auth': { status: 200, body: { access_token: futureJwt() } },
+  'GET /user/profile': { status: 200, body: profile }
+})
+
+test('login code path sends a code, prompts for it, and stores the session', async () => {
+  const { api, store, client } = setup(codeRoutes())
+  const answers = ['andrew.goode@livtech.com', '708916']
+  const questions = []
+  const prompts = { promptLine: async (q) => { questions.push(q); return answers.shift() } }
   const result = await login.doLogin({}, { api, store, io: { isTty: true }, prompts })
-  expect(result.method).toBe('password')
+  expect(result.method).toBe('code')
+  expect(questions[1]).toContain('andrew.goode@livtech.com')
+  const verify = client.calls.find((c) => c.url.endsWith('/verify-code'))
+  expect(JSON.parse(verify.init.body)).toEqual({ email: 'andrew.goode@livtech.com', code: '708916' })
+  expect(store.get('email')).toBe('andrew.goode@livtech.com')
   expect(store.get('workosToken')).toBe('wtok')
   expect(store.get('refreshToken')).toBe('rtok')
   expect(store.get('userId')).toBe('user_1')
 })
 
-test('login refuses an SSO account with a helpful message', async () => {
-  const { api, store } = setup({
-    'GET /auth/identify': { status: 200, body: { auth_mechanism: 'SSO', auth_provider: 'microsoft', sso_configured: true, user_exists: true } }
-  })
-  await expect(
-    login.doLogin({ email: 'x@corp.com' }, { api, store, io: { isTty: true } })
-  ).rejects.toThrow(/SSO sign-in|--token/)
+test('login without a terminal sends the code and stops (two-step, step 1)', async () => {
+  const { api, store, client } = setup(codeRoutes())
+  const result = await login.doLogin({ email: 'a@b.com' }, { api, store, io: { isTty: false } })
+  expect(result).toEqual({ codeSent: true, email: 'a@b.com' })
+  expect(client.countOf('POST', '/auth/magic-link')).toBe(1)
+  expect(client.countOf('POST', '/verify-code')).toBe(0)
+  expect(store.get('workosToken')).toBeUndefined()
+  const out = await captureLog(() => login.renderLogin(result))
+  expect(out).toContain('Sign-in code sent to a@b.com.')
+  expect(out).toContain('blitzy login --email a@b.com --code <code>')
 })
 
-test('login errors clearly for an unknown account', async () => {
-  const { api, store } = setup({
-    'GET /auth/identify': { status: 200, body: { auth_mechanism: 'Password', user_exists: false } }
-  })
+test('login with --code verifies without sending a new code (two-step, step 2)', async () => {
+  const { api, store, client } = setup(codeRoutes())
+  const result = await login.doLogin({ email: 'a@b.com', code: ' 012345 ' }, { api, store, io: { isTty: false } })
+  expect(result.method).toBe('code')
+  expect(client.calls.filter((c) => c.url.endsWith('/auth/magic-link'))).toHaveLength(0)
+  const verify = client.calls.find((c) => c.url.endsWith('/verify-code'))
+  expect(JSON.parse(verify.init.body)).toEqual({ email: 'a@b.com', code: '012345' })
+  expect(store.get('workosToken')).toBe('wtok')
+})
+
+test('login asks again after a wrong code while attempts are left', async () => {
+  let n = 0
+  const { api, store } = setup(codeRoutes(() => ++n === 1
+    ? { status: 400, body: { attempts_left: 9, error: 'This code is invalid or has expired', errorCode: 'CODE_INVALID' } }
+    : { status: 200, body: { next_step: 'signed_in', refresh_token: 'rtok', user_id: 'user_1', workos_access_token: 'wtok' } }))
+  const answers = ['000000', '708916']
+  const questions = []
+  const prompts = { promptLine: async (q) => { questions.push(q); return answers.shift() } }
+  const result = await login.doLogin({ email: 'a@b.com' }, { api, store, io: { isTty: true }, prompts })
+  expect(result.method).toBe('code')
+  expect(n).toBe(2)
+  expect(questions[1]).toContain('9 tries left')
+})
+
+test('login with --code does not ask again after a wrong code', async () => {
+  const { api, store, client } = setup(codeRoutes({ status: 400, body: { attempts_left: 9, error: 'This code is invalid or has expired', errorCode: 'CODE_INVALID' } }))
   await expect(
-    login.doLogin({ email: 'nobody@x.com' }, { api, store, io: { isTty: true } })
-  ).rejects.toThrow(/No Blitzy account/)
+    login.doLogin({ email: 'a@b.com', code: '000000' }, { api, store, io: { isTty: true } })
+  ).rejects.toThrow('This code is invalid or has expired')
+  expect(client.countOf('POST', '/verify-code')).toBe(1)
+  expect(store.get('workosToken')).toBeUndefined()
+})
+
+test('login stops when no attempts are left', async () => {
+  const { api, store, client } = setup(codeRoutes({ status: 400, body: { attempts_left: 0, error: 'Too many attempts', errorCode: 'CODE_LOCKED' } }))
+  const prompts = { promptLine: async () => '000000' }
+  await expect(
+    login.doLogin({ email: 'a@b.com' }, { api, store, io: { isTty: true }, prompts })
+  ).rejects.toThrow('Too many attempts')
+  expect(client.countOf('POST', '/verify-code')).toBe(1)
+})
+
+test('login refuses an SSO account with a helpful message', async () => {
+  const { api, store } = setup(codeRoutes({ status: 403, body: { error: 'sso_required', errorCode: 'SSO_REQUIRED' } }))
+  await expect(
+    login.doLogin({ email: 'x@corp.com', code: '123456' }, { api, store, io: { isTty: false } })
+  ).rejects.toThrow(/must sign in with SSO.*--token <token> --refresh-token <token>/)
+})
+
+test('login errors clearly when Blitzy returns no session', async () => {
+  const { api, store } = setup(codeRoutes({ status: 200, body: { next_step: 'sign_up', email_proof: 'proof' } }))
+  await expect(
+    login.doLogin({ email: 'nobody@x.com', code: '123456' }, { api, store, io: { isTty: false } })
+  ).rejects.toThrow(/did not return a session for nobody@x.com \(next step: sign_up\)/)
+  expect(store.get('workosToken')).toBeUndefined()
 })
 
 // --- whoami ---
