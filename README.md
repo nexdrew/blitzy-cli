@@ -108,14 +108,24 @@ Use this procedure if you cannot use the email code (for example, your account u
 2. Open the browser developer tools.
 3. Go to **Application > Local Storage > `https://platform.blitzy.com`**.
 4. Copy the values of `workos_session_token` and `workos_refresh_token`.
-5. Run this command:
+5. Run `blitzy login --token`. The CLI asks for the two tokens and does not show them:
+
+```sh
+blitzy login --token
+# Access token (workos_session_token):
+# Refresh token (workos_refresh_token, press Enter to skip):
+# Logged in as You <you@company.com> at Your Company.
+```
+
+The refresh token is optional. Without it, the session cannot renew itself and ends after
+90 minutes at most.
+
+You can also give the tokens as flag values, for example in a script. The values are then
+visible in the shell history and in the process list:
 
 ```sh
 blitzy login --token <workos_session_token> --refresh-token <workos_refresh_token>
 ```
-
-`--refresh-token` is optional. Without it, the session cannot renew itself and ends after
-90 minutes at most.
 
 The browser and the CLI then share one session. If you sign out in the browser, the CLI
 session can also end.

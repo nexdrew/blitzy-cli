@@ -70,6 +70,79 @@ test('login rejects --refresh-token without --token', async () => {
   expect(client.calls).toHaveLength(0)
 })
 
+// Hidden-prompt stub: returns the answers in order and records the labels.
+function hiddenPrompts (answers) {
+  const labels = []
+  return { labels, promptHidden: async (label) => { labels.push(label); return answers.shift() } }
+}
+
+const tokenRoutes = {
+  'POST /auth': { status: 200, body: { access_token: futureJwt() } },
+  'GET /user/profile': { status: 200, body: profile }
+}
+
+test('login --token without a value prompts (hidden) for both tokens', async () => {
+  const { api, store } = setup(tokenRoutes)
+  const prompts = hiddenPrompts([' wtok ', 'rtok\n'])
+  const result = await login.doLogin({ token: '' }, { api, store, io: { isTty: true }, prompts })
+  expect(result.method).toBe('token')
+  expect(prompts.labels).toHaveLength(2)
+  expect(prompts.labels[0]).toContain('workos_session_token')
+  expect(prompts.labels[1]).toContain('workos_refresh_token')
+  expect(store.get('workosToken')).toBe('wtok')
+  expect(store.get('refreshToken')).toBe('rtok')
+})
+
+test('login --token prompt: Enter skips the refresh token', async () => {
+  const { api, store } = setup(tokenRoutes, { backing: { refreshToken: 'old-rtok' } })
+  const prompts = hiddenPrompts(['wtok', ''])
+  await login.doLogin({ token: '' }, { api, store, io: { isTty: true }, prompts })
+  expect(store.get('workosToken')).toBe('wtok')
+  expect(store.get('refreshToken')).toBeFalsy()
+})
+
+test('login --token without a value does not prompt for a refresh token given as a value', async () => {
+  const { api, store } = setup(tokenRoutes)
+  const prompts = hiddenPrompts(['wtok'])
+  await login.doLogin({ token: '', 'refresh-token': 'rtok' }, { api, store, io: { isTty: true }, prompts })
+  expect(prompts.labels).toHaveLength(1)
+  expect(store.get('refreshToken')).toBe('rtok')
+})
+
+test('login --token <value> --refresh-token without a value prompts for the refresh token only', async () => {
+  const { api, store } = setup(tokenRoutes)
+  const prompts = hiddenPrompts(['rtok'])
+  await login.doLogin({ token: 'wtok', 'refresh-token': '' }, { api, store, io: { isTty: true }, prompts })
+  expect(prompts.labels).toHaveLength(1)
+  expect(prompts.labels[0]).toContain('workos_refresh_token')
+  expect(store.get('workosToken')).toBe('wtok')
+  expect(store.get('refreshToken')).toBe('rtok')
+})
+
+test('login --token <value> does not prompt', async () => {
+  const { api, store } = setup(tokenRoutes)
+  const prompts = hiddenPrompts([])
+  await login.doLogin({ token: 'wtok' }, { api, store, io: { isTty: true }, prompts })
+  expect(prompts.labels).toHaveLength(0)
+})
+
+test('login --token without a value needs an interactive terminal', async () => {
+  const { api, store, client } = setup(tokenRoutes)
+  await expect(
+    login.doLogin({ token: '' }, { api, store, io: { isTty: false }, prompts: hiddenPrompts([]) })
+  ).rejects.toThrow('--token needs a value when there is no interactive terminal.')
+  expect(client.calls).toHaveLength(0)
+  expect(store.get('workosToken')).toBeUndefined()
+})
+
+test('login --token prompt rejects an empty access token', async () => {
+  const { api, store, client } = setup(tokenRoutes)
+  await expect(
+    login.doLogin({ token: '' }, { api, store, io: { isTty: true }, prompts: hiddenPrompts(['']) })
+  ).rejects.toThrow('Access token is required.')
+  expect(client.calls).toHaveLength(0)
+})
+
 const codeRoutes = (verify) => ({
   'POST /auth/magic-link': { status: 202, body: { message: 'Check your inbox' } },
   'POST /auth/magic-link/verify-code': verify || { status: 200, body: { next_step: 'signed_in', refresh_token: 'rtok', user_id: 'user_1', workos_access_token: 'wtok' } },
@@ -151,7 +224,7 @@ test('login refuses an SSO account with a helpful message', async () => {
   const { api, store } = setup(codeRoutes({ status: 403, body: { error: 'sso_required', errorCode: 'SSO_REQUIRED' } }))
   await expect(
     login.doLogin({ email: 'x@corp.com', code: '123456' }, { api, store, io: { isTty: false } })
-  ).rejects.toThrow(/must sign in with SSO.*--token <token> --refresh-token <token>/)
+  ).rejects.toThrow(/must sign in with SSO.*run `blitzy login --token`/)
 })
 
 test('login errors clearly when Blitzy returns no session', async () => {

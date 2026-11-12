@@ -34,6 +34,17 @@ test('--help prints usage on stdout and exits 0', () => {
   expect(r.stderr).toBe('')
 })
 
+test('no help text wraps: maxWidth fits every command and flag description', () => {
+  const commands = [[], ['login'], ['whoami'], ['auth'], ['logout'], ['projects'], ['rules'], ['envs'], ['teams'], ['download'], ['usage']]
+  for (const args of commands) {
+    const r = run([...args, '--help'])
+    expect(r.code).toBe(0)
+    // A wrapped entry puts its hints (for example "[string]") alone on the next line.
+    const wrapped = r.stdout.split('\n').filter((line) => /^\s+(\[[^\]]+\]\s*)+$/.test(line))
+    expect({ command: args.join(' ') || '(top level)', wrapped }).toEqual({ command: args.join(' ') || '(top level)', wrapped: [] })
+  }
+})
+
 test('unknown command errors on stderr and exits 1', () => {
   const r = run(['boguscmd'])
   expect(r.code).toBe(1)
