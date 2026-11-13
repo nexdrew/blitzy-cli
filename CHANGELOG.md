@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/nexdrew/blitzy-cli/compare/v1.4.0...v1.4.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* Restore download and team members after Blitzy API changes ([#22](https://github.com/nexdrew/blitzy-cli/issues/22)) ([d627ac2](https://github.com/nexdrew/blitzy-cli/commit/d627ac28fea06a86d6bb437ec75ed17264b38b34))
+
 ## [1.4.0](https://github.com/nexdrew/blitzy-cli/compare/v1.3.1...v1.4.0) (2026-11-12)
 
 
