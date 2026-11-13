@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/nexdrew/blitzy-cli/compare/v1.4.1...v1.5.0) (2026-11-13)
+
+
+### Features
+
+* Add cves command and richer project, usage, and download output ([#24](https://github.com/nexdrew/blitzy-cli/issues/24)) ([b336161](https://github.com/nexdrew/blitzy-cli/commit/b3361613ec778daa26a0e27bb43705d53e3dc2a5))
+
 ## [1.4.1](https://github.com/nexdrew/blitzy-cli/compare/v1.4.0...v1.4.1) (2026-11-13)
 
 
