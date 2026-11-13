@@ -20,7 +20,8 @@ async function doWhoami (argv, { api, store, env = process.env }) {
       authenticated: true,
       source: env.BLITZY_TOKEN ? 'env' : 'store',
       workosExpiresAt: iso(workos ? jwtExpMs(workos) : null),
-      platformExpiresAt: iso(platform ? jwtExpMs(platform) : null)
+      platformExpiresAt: iso(platform ? jwtExpMs(platform) : null),
+      refreshTokenPresent: !env.BLITZY_TOKEN && !!(store && store.get('refreshToken'))
     }
   }
 }
@@ -40,9 +41,14 @@ function renderWhoami ({ profile, tokenExpMs, viaEnv, session }) {
     const mins = Math.round((tokenExpMs - Date.now()) / 60000)
     console.log(`Session:  platform token ${mins > 0 ? `valid ~${mins} min` : 'expired (will refresh)'}`)
   }
+  // The WorkOS access token lives about 30 minutes, so report minutes. An
+  // expired token is normal when a refresh token is stored: the next command
+  // renews the session.
   if (session && session.workosExpiresAt) {
-    const hrs = Math.round((Date.parse(session.workosExpiresAt) - Date.now()) / 3600e3)
-    console.log(`Login:    ${hrs > 0 ? `expires in ~${hrs} h` : 'expired'}`)
+    const mins = Math.round((Date.parse(session.workosExpiresAt) - Date.now()) / 60000)
+    const left = mins >= 120 ? `${Math.round(mins / 60)} h` : `${mins} min`
+    const expired = session.refreshTokenPresent ? 'access token expired (will refresh)' : 'expired'
+    console.log(`Login:    ${mins > 0 ? `access token valid ~${left}` : expired}`)
   }
 }
 

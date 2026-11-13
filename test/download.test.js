@@ -114,6 +114,7 @@ test('api.downloadDocument returns raw bytes and throws on HTTP error', async ()
   const store = new Store(new MemBacking({ workosToken: 'wtok' }))
   const client = routeClient({
     'POST /auth': { status: 200, body: { access_token: futureJwt() } },
+    'GET /auth/csrf-token': { status: 200, body: { csrf_token: 'csrf' } },
     'POST /documents/download': (url, init) => {
       const parsed = JSON.parse(init.body)
       // echo which doc was asked for, as raw markdown
@@ -127,6 +128,7 @@ test('api.downloadDocument returns raw bytes and throws on HTTP error', async ()
 
   const client2 = routeClient({
     'POST /auth': { status: 200, body: { access_token: futureJwt() } },
+    'GET /auth/csrf-token': { status: 200, body: { csrf_token: 'csrf' } },
     'POST /documents/download': { status: 404, body: { message: 'Document not available' } }
   })
   const api2 = new BlitzyApi({ client: client2, store: new Store(new MemBacking({ workosToken: 'wtok' })), env: {} })
@@ -208,4 +210,22 @@ test('download aborts entirely on auth errors instead of reporting them as skipp
   }
   const io = fakeIo()
   await expect(download.doDownload({ uuid: 'x', aap: true }, { api, io })).rejects.toThrow(/Session expired/)
+})
+
+test('download aborts on HTTP 403 (no access to the project, or a CSRF failure)', async () => {
+  const api = {
+    getProject: async () => ({ name: 'P' }),
+    downloadDocument: async () => { const e = new Error('You do not have permission to perform this action'); e.status = 403; throw e }
+  }
+  await expect(download.doDownload({ uuid: 'x', probe: true }, { api, io: fakeIo() })).rejects.toThrow(/do not have permission/)
+  await expect(download.doDownload({ uuid: 'x', aap: true }, { api, io: fakeIo() })).rejects.toThrow(/do not have permission/)
+})
+
+test('an unavailable artifact does not repeat the HTTP status in its reason', async () => {
+  const api = {
+    getProject: async () => ({ name: 'P' }),
+    downloadDocument: async () => { const e = new Error('HTTP 500'); e.status = 500; throw e }
+  }
+  const result = await download.doDownload({ uuid: 'x', aap: true, probe: true }, { api, io: fakeIo() })
+  expect(result.artifacts[0]).toEqual({ key: 'aap', available: false, reason: 'HTTP 500' })
 })

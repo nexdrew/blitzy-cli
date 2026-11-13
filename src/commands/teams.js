@@ -4,29 +4,45 @@ const { deps } = require('../app')
 const { output, relTime, table } = require('../format')
 const { fail } = require('../errors')
 
-// The teams API is unpaginated and has no single-team endpoint: /user/team
-// returns every team (with full member rosters) in one response, so detail
-// mode picks the requested team from the list. The user's own role per team
-// comes from a second, auxiliary call and is merged in; its failure only
-// blanks the role, never the command.
+// Team id -> name, for commands that show which teams something is shared
+// with. Enrichment only: on any failure the map is empty and callers show ids.
+async function teamNames (api) {
+  try {
+    const result = await api.listTeams()
+    return new Map(((result && result.teams) || []).map((t) => [t.id, t.name]))
+  } catch {
+    return new Map()
+  }
+}
+
+// List mode reads /user/team: every team the user belongs to, unpaginated and
+// without members. Detail mode reads one team, with its members, from
+// /teams/<uuid>. The user's own role per team comes from a second, auxiliary
+// call and is merged in; its failure only blanks the role, never the command.
 async function doTeams (argv, { api }) {
   const [result, roles] = await Promise.all([
-    api.listTeams(),
+    argv.uuid ? getTeam(api, argv.uuid) : api.listTeams(),
     api.listTeamRoles().catch(() => null)
   ])
   const roleByTeam = new Map((Array.isArray(roles) ? roles : []).map((r) => [r.teamId, r.role]))
-  const teams = ((result && result.teams) || []).map((t) => Object.assign({}, t, { role: roleByTeam.get(t.id) || null }))
-  if (argv.uuid) {
-    const team = teams.find((t) => t.id === argv.uuid)
-    if (!team) {
-      const err = new Error(`Team not found: ${argv.uuid}`)
-      err.kind = 'not_found'
-      throw err
-    }
-    return { mode: 'detail', team }
-  }
+  const withRole = (t) => Object.assign({}, t, { role: roleByTeam.get(t.id) || null })
+  if (argv.uuid) return { mode: 'detail', team: withRole(result) }
+  const teams = ((result && result.teams) || []).map(withRole)
   const totalCount = result && typeof result.totalCount === 'number' ? result.totalCount : teams.length
   return { mode: 'list', result: { teams, totalCount } }
+}
+
+// The API answers 403 (not 404) for a team uuid that does not exist or that the
+// user cannot access, so report both as "not found".
+async function getTeam (api, id) {
+  try {
+    return await api.getTeam(id)
+  } catch (err) {
+    if (err.status !== 403 && err.status !== 404) throw err
+    const notFound = new Error(`Team not found or not accessible: ${id}`)
+    notFound.kind = 'not_found'
+    throw notFound
+  }
 }
 
 function renderList ({ result }) {
@@ -94,6 +110,7 @@ module.exports = {
   run: (argv, context) => handle(argv, context, deps()),
   handle,
   doTeams,
+  teamNames,
   renderList,
   renderDetail
 }

@@ -122,8 +122,10 @@ function renderList ({ result }) {
   }
   const text = table([
     { header: 'NAME', get: (p) => (p._error ? '(unavailable)' : p.name || '-') },
-    { header: 'STATUS', get: (p) => p.status || '-' },
+    // `p.status` is the same value (GITHUB_COMPLETED) for every project, so the
+    // list shows the status of the current run instead (DONE, IN_PROGRESS, ...).
     { header: 'STAGE', get: (p) => (p.currentStatus && p.currentStatus.stage) || '-' },
+    { header: 'RUN STATUS', get: (p) => (p.currentStatus && p.currentStatus.status) || '-' },
     { header: 'DONE', get: projectPercent },
     { header: 'UPDATED', get: (p) => relTime(p.updatedAt) },
     { header: 'ID', get: (p) => p.id || '-' }

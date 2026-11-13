@@ -82,8 +82,9 @@ class BlitzyApi {
     }
 
     if (res.status >= 400) {
-      const message = (json && (json.message || json.error)) || `HTTP ${res.status}`
-      // Gateway errors carry { code, message }; platform errors carry { error, errorCode }.
+      const message = (json && (json.message || json.error || json.detail)) || `HTTP ${res.status}`
+      // Gateway errors carry { code, message }; platform errors carry { error, errorCode };
+      // CSRF errors carry { detail }.
       throw new BlitzyApiError(message, { status: res.status, code: json && (json.errorCode || json.code), body: json })
     }
     return json
@@ -216,10 +217,18 @@ class BlitzyApi {
   }
 
   // Teams the current user belongs to -> { teams: [{ id, companyId, name,
-  // isDefault, ownerId, memberCount, createdAt, updatedAt, members: [...] }],
-  // totalCount }. Unpaginated, members embedded; there is no single-team endpoint.
+  // isDefault, ownerId, memberCount, createdAt, updatedAt, members: [] }],
+  // totalCount }. Unpaginated. Since 2026-11 `members` is always empty here;
+  // the member list comes from getTeam().
   listTeams () {
     return this.authed('GET', '/user/team')
+  }
+
+  // One team with its members -> { id, name, isDefault, ownerId, memberCount, ...,
+  // members: [{ userId, email, firstName, lastName, role, joinedAt, ... }] }.
+  // An unknown or inaccessible uuid gives 403, not 404.
+  getTeam (id) {
+    return this.authed('GET', `/teams/${id}`)
   }
 
   // The current user's role in each team -> [{ role, teamId }] (bare array).
@@ -259,6 +268,20 @@ class BlitzyApi {
     return { project, repos, runs }
   }
 
+  // The platform requires an x-csrf-token header on every POST and PUT that
+  // carries a platform token (since 2026-11). GET /auth/csrf-token -> { csrf_token }.
+  // A CSRF token is valid only with the platform token it was issued for, and it
+  // is reusable, so keep one per platform token for the life of the process.
+  csrfToken (platformToken) {
+    const cached = this._csrf
+    if (cached && cached.platformToken === platformToken) return cached.token
+    const token = this.request('GET', '/auth/csrf-token', { token: platformToken }).then((r) => r && r.csrf_token)
+    const entry = { platformToken, token }
+    this._csrf = entry
+    token.catch(() => { if (this._csrf === entry) this._csrf = null })
+    return token
+  }
+
   // Download one generated document as raw bytes. Requesting a single document
   // returns the raw file (e.g. text/markdown or application/pdf); requesting
   // multiple returns a zip, so we always request exactly one and get a raw file.
@@ -266,6 +289,7 @@ class BlitzyApi {
   // (callers treat that as "this document isn't available").
   async downloadDocument (id, documentType, fileExtension) {
     const token = await this.platformToken()
+    const csrf = await this.csrfToken(token)
     const url = `${this.baseUrl}/projects/${id}/documents/download`
     const body = JSON.stringify({ document_types: [{ document_type: documentType, file_extension: fileExtension }] })
     let res
@@ -276,6 +300,7 @@ class BlitzyApi {
           accept: '*/*',
           'content-type': 'application/json',
           'x-blitzy-client': USER_AGENT,
+          'x-csrf-token': csrf,
           authorization: `Bearer ${token}`
         },
         body
@@ -291,7 +316,7 @@ class BlitzyApi {
       let message = `HTTP ${res.status}`
       try {
         const json = JSON.parse(buffer.toString('utf8'))
-        message = json.message || json.error || message
+        message = json.message || json.error || json.detail || message
       } catch { /* non-JSON error body */ }
       throw new BlitzyApiError(message, { status: res.status })
     }

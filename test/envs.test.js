@@ -39,6 +39,7 @@ test('envs detail mode shows OS, variables, and setup instructions', async () =>
   expect(out).toContain('CI=true')
   expect(out).toContain('NODE_ENV=test')
   expect(out).toContain('Used by')
+  expect(out).toContain('Shared with  Private') // the fixture gives access to one person only
   expect(out).toContain('Alora Plus Bulk Front-End XSS Remediation')
   // setup instructions are printed (that's the point for scoping)
   expect(out).toContain('Node.js 22.x LTS')

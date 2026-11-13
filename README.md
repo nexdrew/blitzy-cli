@@ -150,6 +150,13 @@ details. The detail views print the rule's full content, the environment's setup
 instructions, variables, and which projects use it, and the team's member roster —
 handy for deciding which rules/environments to attach when scoping a new project.
 
+The rule and environment detail views also show a `Shared with` line: `Organization`,
+team names, or `Private`. A team marked `(via project)` has access only because one of
+its projects uses the rule or environment.
+
+In the project list, `STAGE` is the lifecycle stage of the project and `RUN STATUS` is the
+status of its current run (for example `IN_PROGRESS` or `DONE`).
+
 Filter the project list by team — comma-delimited team uuids and/or the synthetic
 scopes `PERSONAL` (your unshared projects) and `ORGANIZATION` (company-shared):
 
@@ -162,7 +169,7 @@ blitzy projects --teams personal,organization                    # scopes are ca
 Add `--json` to any command to get the raw API response for scripting:
 
 ```sh
-blitzy projects --json | jq '.projects[] | {name, status}'
+blitzy projects --json | jq '.projects[] | {name, stage: .currentStatus.stage, run: .currentStatus.status}'
 ```
 
 ### Download artifacts
@@ -189,6 +196,8 @@ Downloaded to ./aloradl-native-port-52dbb20e:
 By default files go to `./<project-slug>-<short-id>/` under the current directory; use
 `--out <dir>` to choose your own. Artifacts that don't exist yet for the project (e.g. the
 Project Guide before code-gen has run) are reported as skipped, and the rest still download.
+If Blitzy denies access to the project (HTTP 403), the command stops with an error. Blitzy
+gives this answer for a project that you cannot access and for a uuid that does not exist.
 
 For scripting, `--stdout` streams a single artifact's raw bytes to stdout (pick exactly
 one artifact flag; with `--tech-spec` it picks the Markdown flavor), and `--probe` reports

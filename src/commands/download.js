@@ -61,10 +61,13 @@ async function fetchArtifact (api, id, key) {
     if (!buffer || buffer.length === 0) return { key, ok: false, reason: 'empty response (not available yet)' }
     return { key, ok: true, buffer }
   } catch (err) {
-    // Auth/network failures abort the whole command; a plain HTTP error just
-    // means "this document isn't available".
-    if (err.kind === 'auth' || err.kind === 'network' || err.status === 401) throw err
-    const reason = err.status ? `${err.message} (HTTP ${err.status})` : err.message
+    // Auth/network failures abort the whole command. So does a 403: the API uses
+    // it for a project the user cannot access (or that does not exist) and for
+    // CSRF failures, so no artifact can succeed. Any other HTTP error just means
+    // "this document isn't available".
+    if (err.kind === 'auth' || err.kind === 'network' || err.status === 401 || err.status === 403) throw err
+    const status = err.status ? `HTTP ${err.status}` : ''
+    const reason = status && err.message !== status ? `${err.message} (${status})` : err.message
     return { key, ok: false, reason }
   }
 }

@@ -10,6 +10,7 @@ const projectsList = require('./fixtures/projects-list.json')
 const projectDetail = require('./fixtures/project-detail.json')
 const teamsList = require('./fixtures/teams-list.json')
 const teamRoles = require('./fixtures/team-roles.json')
+const teamDetail = require('./fixtures/team-detail.json')
 
 const futureJwt = () => makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600 })
 
@@ -160,11 +161,89 @@ test('listTeams and listTeamRoles hit the user/team endpoints', async () => {
 
   const teams = await api.listTeams()
   expect(teams.teams).toHaveLength(2)
-  expect(teams.teams[0].members[1].email).toBe('uma.user@example.com')
+  expect(teams.teams[0].members).toEqual([]) // the list no longer embeds members
 
   const roles = await api.listTeamRoles()
   expect(roles).toEqual(teamRoles)
   expect(client.countOf('GET', '/user/team/roles')).toBe(1)
+})
+
+test('getTeam reads one team with its members from /teams/<uuid>', async () => {
+  const store = new Store(new MemBacking({ workosToken: 'wtok' }))
+  const { api, client } = apiWith({
+    'POST /auth': { status: 200, body: { access_token: futureJwt() } },
+    'GET /teams/': { status: 200, body: teamDetail }
+  }, { store })
+  const team = await api.getTeam(teamDetail.id)
+  expect(team.members.map((m) => m.email)).toContain('uma.user@example.com')
+  expect(new URL(client.calls[1].url).pathname).toBe(`/v1/teams/${teamDetail.id}`)
+})
+
+test('request reads the CSRF error shape { detail }', async () => {
+  const { api } = apiWith({ 'POST /auth/magic-link': { status: 403, body: { detail: 'CSRF token missing.' } } })
+  await expect(api.requestCode('a@b.com')).rejects.toThrow('CSRF token missing.')
+})
+
+// --- CSRF token for POST requests ---
+
+function csrfRoutes (extra = {}) {
+  let n = 0
+  return Object.assign({
+    // Each exchange gives a different platform token, like the real API.
+    'POST /auth': () => ({ status: 200, body: { access_token: makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600, n: ++n }) } }),
+    'GET /auth/csrf-token': (url, init) => ({ status: 200, body: { csrf_token: `csrf-for-${init.headers.authorization}` } }),
+    'POST /documents/download': { status: 200, body: '# doc', headers: { 'content-type': 'text/markdown' } }
+  }, extra)
+}
+
+test('downloadDocument sends an x-csrf-token issued for the same platform token', async () => {
+  const store = new Store(new MemBacking({ workosToken: 'wtok' }))
+  const { api, client } = apiWith(csrfRoutes(), { store })
+  await api.downloadDocument('pid', 'project_guide', 'md')
+  const post = client.calls.find((c) => c.url.endsWith('/documents/download'))
+  expect(post.init.headers['x-csrf-token']).toBe(`csrf-for-${post.init.headers.authorization}`)
+})
+
+test('the CSRF token is fetched once and reused while the platform token is the same', async () => {
+  const store = new Store(new MemBacking({ workosToken: 'wtok' }))
+  const { api, client } = apiWith(csrfRoutes(), { store })
+  await api.downloadDocument('pid', 'build_prompt', 'md') // caches the platform token
+  await Promise.all([
+    api.downloadDocument('pid', 'project_guide', 'md'),
+    api.downloadDocument('pid', 'tech_spec', 'md'),
+    api.downloadDocument('pid', 'tech_spec', 'pdf')
+  ])
+  expect(client.countOf('POST', '/auth')).toBe(1)
+  expect(client.countOf('GET', '/auth/csrf-token')).toBe(1)
+  expect(client.countOf('POST', '/documents/download')).toBe(4)
+})
+
+test('a new platform token gets its own CSRF token (BLITZY_TOKEN exchanges on every call)', async () => {
+  const { api, client } = apiWith(csrfRoutes(), { env: { BLITZY_TOKEN: 'env-wtok' } })
+  await api.downloadDocument('pid', 'project_guide', 'md')
+  await api.downloadDocument('pid', 'tech_spec', 'md')
+  expect(client.countOf('GET', '/auth/csrf-token')).toBe(2)
+  for (const post of client.calls.filter((c) => c.url.endsWith('/documents/download'))) {
+    expect(post.init.headers['x-csrf-token']).toBe(`csrf-for-${post.init.headers.authorization}`)
+  }
+})
+
+test('a failed CSRF fetch is not cached', async () => {
+  let fail = true
+  const store = new Store(new MemBacking({ workosToken: 'wtok' }))
+  const { api } = apiWith(csrfRoutes({
+    'GET /auth/csrf-token': () => (fail ? { status: 503, body: { error: 'unavailable' } } : { status: 200, body: { csrf_token: 'c' } })
+  }), { store })
+  await expect(api.downloadDocument('pid', 'project_guide', 'md')).rejects.toThrow('unavailable')
+  fail = false
+  const { buffer } = await api.downloadDocument('pid', 'project_guide', 'md')
+  expect(buffer.toString('utf8')).toBe('# doc')
+})
+
+test('downloadDocument reports a CSRF rejection with the server text', async () => {
+  const store = new Store(new MemBacking({ workosToken: 'wtok' }))
+  const { api } = apiWith(csrfRoutes({ 'POST /documents/download': { status: 403, body: { detail: 'CSRF token invalid.' } } }), { store })
+  await expect(api.downloadDocument('pid', 'project_guide', 'md')).rejects.toThrow('CSRF token invalid.')
 })
 
 test('listProjects forwards teamIds and omits it when absent', async () => {

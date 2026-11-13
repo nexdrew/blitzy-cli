@@ -23,6 +23,7 @@ const projectsList = require('./fixtures/projects-list.json')
 const projectDetail = require('./fixtures/project-detail.json')
 const teamsList = require('./fixtures/teams-list.json')
 const teamRoles = require('./fixtures/team-roles.json')
+const teamDetail = require('./fixtures/team-detail.json')
 
 // --- setup (flag definitions) ---
 
@@ -41,7 +42,7 @@ test('command setup() functions wire their flags without throwing', () => {
 
 test('login handle (token path) renders and does not error', async () => {
   const ctx = fakeContext()
-  const store = { setSession: () => {}, set: () => {} }
+  const store = { all: () => ({}), setSession: () => {}, set: () => {} }
   const api = { profile: async () => profile }
   const out = await captureLog(() => login.handle({ token: 'wtok' }, ctx, { api, store, io: { isTty: false } }))
   expect(out).toContain('Logged in as Andrew Goode')
@@ -50,7 +51,7 @@ test('login handle (token path) renders and does not error', async () => {
 
 test('login handle routes errors to stderr with exit code', async () => {
   const e = fakeErrio()
-  const store = { setSession: () => {}, set: () => {}, get: () => null }
+  const store = { all: () => ({}), restore: () => {}, setSession: () => {}, set: () => {}, get: () => null }
   const api = { profile: async () => { throw new Error('bad token') } }
   await login.handle({ token: 'x' }, fakeContext(), { api, store, io: { isTty: false }, errio: e.io })
   expect(e.lines[0]).toBe('bad token')
@@ -91,6 +92,15 @@ test('whoami handle routes errors to stderr with exit code', async () => {
   expect(e.codes[0]).toBe(2) // auth errors get the typed exit code
 })
 
+test('whoami reports the 30-minute login in minutes, and an expired one as refreshable', async () => {
+  const at = (mins) => new Date(Date.now() + mins * 60000).toISOString()
+  const render = (session) => captureLog(() => whoami.renderWhoami({ profile, tokenExpMs: null, viaEnv: false, session }))
+  expect(await render({ workosExpiresAt: at(25), refreshTokenPresent: true })).toContain('Login:    access token valid ~25 min')
+  expect(await render({ workosExpiresAt: at(600), refreshTokenPresent: true })).toContain('Login:    access token valid ~10 h')
+  expect(await render({ workosExpiresAt: at(-5), refreshTokenPresent: true })).toContain('Login:    access token expired (will refresh)')
+  expect(await render({ workosExpiresAt: at(-5), refreshTokenPresent: false })).toContain('Login:    expired')
+})
+
 test('whoami handle --json emits the profile plus a session block', async () => {
   const ctx = fakeContext()
   const api = { profile: async () => profile }
@@ -101,6 +111,7 @@ test('whoami handle --json emits the profile plus a session block', async () => 
   expect(parsed.session.source).toBe('store')
   expect(parsed.session).toHaveProperty('workosExpiresAt')
   expect(parsed.session).toHaveProperty('platformExpiresAt')
+  expect(parsed.session.refreshTokenPresent).toBe(false)
 })
 
 // --- logout ---
@@ -156,7 +167,18 @@ test('envs handle: list, detail, and error paths', async () => {
 
 // --- teams ---
 
-const teamsApi = () => ({ listTeams: async () => teamsList, listTeamRoles: async () => teamRoles })
+// Like the real API: the list has no members, one team comes from getTeam(),
+// and an unknown uuid gives 403.
+const teamsApi = () => ({
+  listTeams: async () => teamsList,
+  listTeamRoles: async () => teamRoles,
+  getTeam: async (id) => {
+    if (id === teamDetail.id) return teamDetail
+    const e = new Error('You do not have permission to perform this action')
+    e.status = 403
+    throw e
+  }
+})
 
 test('teams handle: list, detail, and error paths', async () => {
   const listOut = await captureLog(() => teams.handle({}, fakeContext(), { api: teamsApi() }))
@@ -179,8 +201,26 @@ test('teams handle: list, detail, and error paths', async () => {
 test('teams detail: unknown uuid exits with the not-found code', async () => {
   const e = fakeErrio()
   await teams.handle({ uuid: 'ffffffff-0000-0000-0000-000000000000' }, fakeContext(), { api: teamsApi(), errio: e.io })
-  expect(e.lines[0]).toMatch(/Team not found/)
+  expect(e.lines[0]).toBe('Team not found or not accessible: ffffffff-0000-0000-0000-000000000000')
   expect(e.codes[0]).toBe(3) // not_found errors get the typed exit code
+})
+
+test('teams detail: other API failures keep their own message and exit code', async () => {
+  const e = fakeErrio()
+  const api = Object.assign(teamsApi(), { getTeam: async () => { const err = new Error('boom'); err.status = 500; throw err } })
+  await teams.handle({ uuid: teamDetail.id }, fakeContext(), { api, errio: e.io })
+  expect(e.lines[0]).toBe('boom')
+  expect(e.codes[0]).toBe(1)
+})
+
+test('teams detail shows the member table from getTeam, not from the list', async () => {
+  let listCalls = 0
+  const api = Object.assign(teamsApi(), { listTeams: async () => { listCalls++; return teamsList } })
+  const out = await captureLog(() => teams.handle({ uuid: teamDetail.id }, fakeContext(), { api }))
+  expect(listCalls).toBe(0)
+  expect(out).toContain('NAME')
+  expect(out).toContain('JOINED')
+  for (const m of teamDetail.members) expect(out).toContain(m.email)
 })
 
 test('teams tolerates a failed roles call (roles are enrichment only)', async () => {

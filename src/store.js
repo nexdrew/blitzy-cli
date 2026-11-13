@@ -52,6 +52,12 @@ class Store {
     this._cs.clear()
   }
 
+  // Put back a snapshot taken with all(), replacing everything stored now.
+  restore (snapshot) {
+    this._cs.clear()
+    for (const [k, v] of Object.entries(snapshot || {})) this._cs.set(k, v)
+  }
+
   get path () {
     return this._cs.path
   }
