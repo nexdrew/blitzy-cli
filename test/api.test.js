@@ -418,3 +418,32 @@ test('platformToken flags an invalid BLITZY_TOKEN distinctly', async () => {
     expect(err.kind).toBe('auth')
   }
 })
+
+// --- project extras and Proactive Insights ---
+
+test('project extras hit their endpoints (note the singular and plural paths)', async () => {
+  const store = new Store(new MemBacking({ workosToken: 'wtok' }))
+  const { api, client } = apiWith({ 'POST /auth': { status: 200, body: { access_token: futureJwt() } } }, { store })
+  const calls = [
+    [() => api.projectEnvironments('pid'), '/v1/project/pid/environments'],
+    [() => api.projectRules('pid'), '/v1/projects/pid/rules'],
+    [() => api.techSpecLatest('pid'), '/v1/project/pid/tech-spec/latest'],
+    [() => api.ingestionProgress('pid', 'ts'), '/v1/project/pid/tech-spec/ts/ingestion-progress'],
+    [() => api.codeGen('pid', 'ts'), '/v1/project/pid/tech-spec/ts/code-gen'],
+    [() => api.codeGenProgress('pid', 'cg'), '/v1/project/pid/code-gen/cg/progress'],
+    [() => api.listCveBranches(), '/v1/cve/branches']
+  ]
+  for (const [call, path] of calls) {
+    await call().catch(() => {}) // the stub answers 404; only the request matters here
+    expect(new URL(client.calls[client.calls.length - 1].url).pathname).toBe(path)
+    expect(client.calls[client.calls.length - 1].init.method).toBe('GET')
+  }
+})
+
+test('runProgress returns null without a tech spec, without a status, and for an unknown stage', async () => {
+  const { api, client } = apiWith({})
+  expect(await api.runProgress('pid', { currentStatus: { stage: 'CODEGEN', status: 'IN_PROGRESS' } }, null)).toBe(null)
+  expect(await api.runProgress('pid', { currentStatus: {} }, { id: 'ts' })).toBe(null)
+  expect(await api.runProgress('pid', { currentStatus: { stage: 'SOMETHING_NEW', status: 'IN_PROGRESS' } }, { id: 'ts' })).toBe(null)
+  expect(client.calls).toHaveLength(0)
+})

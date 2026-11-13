@@ -35,7 +35,7 @@ test('--help prints usage on stdout and exits 0', () => {
 })
 
 test('no help text wraps: maxWidth fits every command and flag description', () => {
-  const commands = [[], ['login'], ['whoami'], ['auth'], ['logout'], ['projects'], ['rules'], ['envs'], ['teams'], ['download'], ['usage']]
+  const commands = [[], ['login'], ['whoami'], ['auth'], ['logout'], ['projects'], ['rules'], ['envs'], ['teams'], ['cves'], ['download'], ['usage']]
   for (const args of commands) {
     const r = run([...args, '--help'])
     expect(r.code).toBe(0)

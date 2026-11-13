@@ -11,8 +11,41 @@
   "registrationCompleted": true,
   "subscription": {
     "planName": "ENTERPRISE",
-    "status": "ACTIVE"
+    "status": "ACTIVE",
+    "chargeLinesGeneratedOverage": 0.5,
+    "chargeLinesOnboardedOverage": 0.5,
+    "currentPeriodStartDate": 1780000000,
+    "currentPeriodEndDate": 1811536000,
+    "startDate": 1780000000,
+    "endDate": 1811536000,
+    "hasTrialReceived": false,
+    "isTrialing": false,
+    "planOwnerId": "aaaaaaaa-0000-4000-8000-000000000005",
+    "planSubscriberId": "aaaaaaaa-0000-4000-8000-000000000006",
+    "quotaLinesGenerated": 1250000,
+    "quotaLinesOnboarded": 5000000,
+    "remainingRuns": 0,
+    "stripeCustomerId": null,
+    "stripeSubscriptionId": null,
+    "trialEndDate": null,
+    "trialStartDate": null
   },
   "updatedAt": 1780506508,
-  "userRole": "SUPER_ADMIN"
+  "userRole": "SUPER_ADMIN",
+  "avatarBlob": null,
+  "chat_url": null,
+  "recovery_required": false,
+  "userConfig": {
+    "codeGenNotificationEnabled": true,
+    "envTestNotificationEnabled": true,
+    "techSpecNotificationEnabled": true,
+    "platformConfig": {
+      "concierge": {
+        "expanded": false,
+        "lastOpenedProjectId": null,
+        "onboardingSettingsVisited": true,
+        "onboardingWorkspaceVisited": true
+      }
+    }
+  }
 }

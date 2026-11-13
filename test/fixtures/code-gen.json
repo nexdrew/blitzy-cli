@@ -1,0 +1,11 @@
+{
+  "code_repo_url": null,
+  "failure_reason": null,
+  "id": "dddddddd-0000-4000-8000-000000000001",
+  "metadata": null,
+  "project_run_id": null,
+  "ready_at": null,
+  "reason": "Refactor the data layer",
+  "status": "IN_PROGRESS",
+  "tech_spec_id": "cccccccc-0000-4000-8000-000000000001"
+}

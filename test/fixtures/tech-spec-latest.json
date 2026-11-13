@@ -1,0 +1,13 @@
+{
+  "approvedAt": null,
+  "createdAt": 1784900000,
+  "id": "cccccccc-0000-4000-8000-000000000001",
+  "jobId": null,
+  "jobType": "REFACTOR_CODE",
+  "link": null,
+  "pdfReportStatus": "DONE",
+  "status": "DONE",
+  "storageType": null,
+  "updatedAt": 1785000000,
+  "version": 4
+}

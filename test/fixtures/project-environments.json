@@ -1,0 +1,16 @@
+{
+  "environments": [
+    {
+      "id": "4cd123bf-54b5-4857-a0b1-2a18696c55bb",
+      "name": "Linux Node",
+      "position": 2,
+      "revision": 2
+    },
+    {
+      "id": "bbbbbbbb-0000-4000-8000-000000000001",
+      "name": "Windows Base",
+      "position": 1,
+      "revision": 7
+    }
+  ]
+}

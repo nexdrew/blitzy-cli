@@ -9,5 +9,13 @@
   "linesOnboarded": 2213358,
   "linesRemoved": 1315,
   "quotaLinesGenerated": 1250000,
-  "quotaLinesOnboarded": 5000000
+  "quotaLinesOnboarded": 5000000,
+  "quotaLinesGeneratedRemaining": 1063175,
+  "quotaLinesOnboardedRemaining": 2786642,
+  "reservedLinesGenerated": 0,
+  "linesAddedEdited": 185502,
+  "chargeLinesGeneratedOverage": 0.5,
+  "chargeLinesOnboardedOverage": 0.5,
+  "costLinesGeneratedOverage": 0,
+  "costLinesOnboardedOverage": 0
 }

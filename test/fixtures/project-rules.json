@@ -1,0 +1,15 @@
+{
+  "rules": [
+    {
+      "id": "12775763-a828-4fd7-8403-9bfe9f898565",
+      "name": "Locale and Time Zone Independent Tests",
+      "scope": "PERSONAL"
+    },
+    {
+      "id": "bbbbbbbb-0000-4000-8000-000000000002",
+      "name": "Require Test Coverage",
+      "scope": "SYSTEM_PRESET"
+    }
+  ],
+  "totalCount": 2
+}

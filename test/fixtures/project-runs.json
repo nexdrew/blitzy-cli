@@ -3,7 +3,16 @@
     {
       "completed_at": null,
       "created_at": 1784924708,
-      "metering": { "percentComplete": 90.2 },
+      "metering": {
+        "percentComplete": 90.2,
+        "estimatedLinesGenerated": 1800,
+        "filesTouched": 22,
+        "hoursSaved": 74,
+        "linesAdded": 1527,
+        "linesEdited": 72,
+        "linesGenerated": 1627,
+        "linesRemoved": 28
+      },
       "pr_link": "https://github.com/LivTech-Alora/blitzy-pilot-parent/pull/19",
       "pr_number": 19,
       "pr_status": "PENDING",
@@ -15,7 +24,16 @@
     {
       "completed_at": null,
       "created_at": 1784800000,
-      "metering": { "percentComplete": 100 },
+      "metering": {
+        "percentComplete": 100,
+        "estimatedLinesGenerated": 5200,
+        "filesTouched": 61,
+        "hoursSaved": 120,
+        "linesAdded": 4800,
+        "linesEdited": 310,
+        "linesGenerated": 5110,
+        "linesRemoved": 95
+      },
       "pr_link": "https://github.com/LivTech-Alora/blitzy-pilot-parent/pull/18",
       "pr_number": 18,
       "pr_status": "MERGED",
@@ -27,7 +45,16 @@
     {
       "completed_at": null,
       "created_at": 1784700000,
-      "metering": { "percentComplete": 50 },
+      "metering": {
+        "percentComplete": 50,
+        "estimatedLinesGenerated": 1800,
+        "filesTouched": 22,
+        "hoursSaved": 74,
+        "linesAdded": 1527,
+        "linesEdited": 72,
+        "linesGenerated": 1627,
+        "linesRemoved": 28
+      },
       "pr_link": null,
       "pr_number": null,
       "pr_status": null,
