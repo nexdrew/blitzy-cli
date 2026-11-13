@@ -1,12 +1,14 @@
 'use strict'
 
 const { deps } = require('../app')
-const { output, relTimeIso, table } = require('../format')
+const { output, relTimeIso, table, sharedWith } = require('../format')
+const { teamNames } = require('./teams')
 const { fail } = require('../errors')
 
 async function doEnvs (argv, { api }) {
   if (argv.uuid) {
-    return { mode: 'detail', env: await api.getEnvironment(argv.uuid) }
+    const [env, names] = await Promise.all([api.getEnvironment(argv.uuid), teamNames(api)])
+    return { mode: 'detail', env, teamNames: names }
   }
   return { mode: 'list', result: await api.listEnvironments() }
 }
@@ -25,8 +27,8 @@ function renderList ({ result }) {
   console.log(`\n${envs.length} shown.`)
 }
 
-function renderDetail ({ env: e }) {
-  const line = (label, value) => { if (value !== undefined && value !== null && value !== '') console.log(`${label.padEnd(12)}${value}`) }
+function renderDetail ({ env: e, teamNames }) {
+  const line = (label, value) => { if (value !== undefined && value !== null && value !== '') console.log(`${label.padEnd(13)}${value}`) }
   console.log(e.name || '(unnamed environment)')
   line('ID', e.id)
   if (e.target_os) line('OS', e.target_os)
@@ -35,6 +37,7 @@ function renderDetail ({ env: e }) {
   line('Updated', relTimeIso(e.updatedAt))
   const projects = (e.projects || []).map((p) => p.projectName).filter(Boolean)
   if (projects.length) line('Used by', projects.join(', '))
+  line('Shared with', sharedWith(e, teamNames))
 
   const varKeys = e.variables ? Object.keys(e.variables) : []
   if (varKeys.length) {

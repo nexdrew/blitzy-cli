@@ -1,7 +1,7 @@
 'use strict'
 
 const { test, expect } = require('bun:test')
-const { output, relTime, relTimeIso, pct, table, toMs } = require('../src/format')
+const { output, relTime, relTimeIso, pct, table, toMs, sharedWith } = require('../src/format')
 const { captureLog } = require('./helpers')
 
 test('output emits JSON when argv.json, else calls the human renderer', async () => {
@@ -57,4 +57,34 @@ test('table aligns columns and includes headers', () => {
   const col2 = lines[0].indexOf('CT')
   expect(lines[1][col2]).toBe('1')
   expect(lines[2][col2]).toBe('2')
+})
+
+test('sharedWith names the organization and teams, and marks access that comes via a project', () => {
+  const names = new Map([['t1', 'Alpha Team'], ['t2', 'Beta Team']])
+  const item = {
+    shareWithCompany: true,
+    access: [
+      { entityType: 'COMPANY', entityId: 'c1', sharedThrough: 'DIRECT' },
+      { entityType: 'TEAM', entityId: 't1', sharedThrough: 'DIRECT' },
+      { entityType: 'TEAM', entityId: 't2', sharedThrough: 'PROJECT' },
+      { entityType: 'USER', entityId: 'u1', sharedThrough: 'DIRECT' }
+    ]
+  }
+  expect(sharedWith(item, names)).toBe('Organization, Alpha Team, Beta Team (via project)')
+})
+
+test('sharedWith: direct access wins over project access, unknown teams show their id', () => {
+  const access = [
+    { entityType: 'TEAM', entityId: 't1', sharedThrough: 'PROJECT' },
+    { entityType: 'TEAM', entityId: 't1', sharedThrough: 'DIRECT' },
+    { entityType: 'TEAM', entityId: 't9', sharedThrough: 'DIRECT' }
+  ]
+  expect(sharedWith({ access }, new Map([['t1', 'Alpha Team']]))).toBe('Alpha Team, t9')
+})
+
+test('sharedWith: Private when only people have access, empty when the API gave no sharing data', () => {
+  expect(sharedWith({ access: [{ entityType: 'USER', entityId: 'u1', sharedThrough: 'DIRECT' }] })).toBe('Private')
+  expect(sharedWith({ access: [] })).toBe('Private')
+  expect(sharedWith({ name: 'old shape' })).toBe('')
+  expect(sharedWith({ shareWithCompany: true })).toBe('Organization')
 })

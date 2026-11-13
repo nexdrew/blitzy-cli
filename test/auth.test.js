@@ -83,3 +83,23 @@ test('auth handle --json emits the status object', async () => {
   expect(parsed.authenticated).toBe(true)
   expect(parsed.email).toBe('a@b.com')
 })
+
+test('doAuth treats a token that is not a JWT as not authenticated, even with a refresh token', async () => {
+  const store = storeWith({ email: 'a@b.com', workosToken: 'x', refreshToken: 'x' })
+  const s = auth.doAuth({}, { store, env: {}, now: () => NOW })
+  expect(s.authenticated).toBe(false)
+  expect(s.tokenReadable).toBe(false)
+  expect(s.refreshExpected).toBe(false)
+  const out = await captureLog(() => auth.renderAuth(s))
+  expect(out).toContain('Not authenticated.')
+  expect(out).toContain('The token from the stored login is not a valid access token.')
+
+  const env = auth.doAuth({}, { store: storeWith({}), env: { BLITZY_TOKEN: 'not-a-jwt' }, now: () => NOW })
+  expect(env.authenticated).toBe(false)
+  expect(await captureLog(() => auth.renderAuth(env))).toContain('The token from BLITZY_TOKEN is not a valid access token.')
+})
+
+test('doAuth reports tokenReadable true for a normal token and null when nothing is stored', () => {
+  expect(auth.doAuth({}, { store: storeWith({ workosToken: liveJwt() }), env: {}, now: () => NOW }).tokenReadable).toBe(true)
+  expect(auth.doAuth({}, { store: storeWith({}), env: {}, now: () => NOW }).tokenReadable).toBe(null)
+})

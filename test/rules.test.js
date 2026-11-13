@@ -8,6 +8,7 @@ const rules = require('../src/commands/rules')
 
 const rulesList = require('./fixtures/rules-list.json')
 const ruleDetail = require('./fixtures/rule-detail.json')
+const teamsList = require('./fixtures/teams-list.json')
 
 const futureJwt = () => makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600 })
 
@@ -39,6 +40,20 @@ test('rules detail mode fetches one rule and prints its content', async () => {
   expect(out).toContain('Alora SProc Rewrite - Phase 0')
   // the full rule content is printed (that's the point for scoping)
   expect(out).toContain('framework-neutral contract seam')
+})
+
+test('rules detail shows who the rule is shared with, by team name', async () => {
+  const result = await rules.doRules({ uuid: 'x' }, {
+    api: api({ 'GET /rules/': { status: 200, body: ruleDetail }, 'GET /user/team': { status: 200, body: teamsList } })
+  })
+  const out = await captureLog(() => rules.renderDetail(result))
+  expect(out).toContain('Shared with  Alpha Team (via project)')
+})
+
+test('rules detail falls back to team ids when the team list is not available', async () => {
+  const result = await rules.doRules({ uuid: 'x' }, { api: api({ 'GET /rules/': { status: 200, body: ruleDetail } }) })
+  const out = await captureLog(() => rules.renderDetail(result))
+  expect(out).toContain(`Shared with  ${ruleDetail.access[0].entityId} (via project)`)
 })
 
 test('rules list surfaces a not-logged-in error via the API', async () => {

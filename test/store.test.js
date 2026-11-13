@@ -52,3 +52,14 @@ test('set() writes an arbitrary key', () => {
   store.set('email', 'x@y.com')
   expect(store.get('email')).toBe('x@y.com')
 })
+
+test('restore() replaces everything with a snapshot from all()', () => {
+  const store = new Store(new MemBacking())
+  store.setSession({ email: 'a@b.com', workosToken: 'good', refreshToken: 'r1' })
+  store.setPlatformToken('ptok', 123)
+  const snapshot = store.all()
+  store.setSession({ workosToken: 'bad', refreshToken: null })
+  store.set('userId', 'someone-else')
+  store.restore(snapshot)
+  expect(store.all()).toEqual(snapshot)
+})

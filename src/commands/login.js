@@ -53,8 +53,19 @@ async function doLogin (argv, { api, store, io = {}, prompts = prompt }) {
       refreshFlag === undefined && tokenFlag === '' ? '' : refreshFlag,
       '--refresh-token', 'Refresh token (workos_refresh_token, press Enter to skip): ', ask
     )
+    // The profile call validates the tokens (it exchanges and caches the platform
+    // token). If it fails, put back the session that was there before, so a
+    // wrong token does not destroy a working login.
+    const previous = store.all()
     store.setSession({ workosToken: token, refreshToken: refreshToken || null })
-    const profile = await api.profile() // exchanges + caches the platform token, and validates
+    let profile
+    try {
+      profile = await api.profile()
+    } catch (err) {
+      store.restore(previous)
+      if (err.kind === 'auth' || err.status === 401) err.message = 'Blitzy rejected the token. No stored login was changed.'
+      throw err
+    }
     if (profile && profile.email) store.set('email', profile.email)
     if (profile && profile.id) store.set('userId', profile.id)
     return { profile, method: 'token' }

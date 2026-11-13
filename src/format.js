@@ -74,4 +74,28 @@ function table (columns, rows) {
   return lines.join('\n')
 }
 
-module.exports = { output, relTime, relTimeIso, pct, table, toMs }
+// Describe who a rule or an environment is shared with. The API gives
+// `shareWithCompany` and an `access` list of { entityType: COMPANY | TEAM | USER,
+// entityId, sharedThrough: DIRECT | PROJECT }. A team that has access only
+// because a project uses the item is marked "(via project)". USER entries are
+// individual people (for example the owner) and are not listed. Returns '' when
+// the API gave no sharing data.
+function sharedWith (item, teamNames = new Map()) {
+  const access = item && Array.isArray(item.access) ? item.access : null
+  if (!access && !(item && item.shareWithCompany)) return ''
+  const list = access || []
+  const out = []
+  if (item.shareWithCompany || list.some((a) => a.entityType === 'COMPANY')) out.push('Organization')
+  const teams = new Map()
+  for (const a of list) {
+    if (a.entityType !== 'TEAM' || !a.entityId) continue
+    if (a.sharedThrough !== 'PROJECT' || !teams.has(a.entityId)) teams.set(a.entityId, a.sharedThrough)
+  }
+  for (const [id, through] of teams) {
+    const name = teamNames.get(id) || id
+    out.push(through === 'PROJECT' ? `${name} (via project)` : name)
+  }
+  return out.length ? out.join(', ') : 'Private'
+}
+
+module.exports = { output, relTime, relTimeIso, pct, table, toMs, sharedWith }

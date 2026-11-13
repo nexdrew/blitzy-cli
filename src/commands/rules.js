@@ -1,12 +1,14 @@
 'use strict'
 
 const { deps } = require('../app')
-const { output, relTimeIso, table } = require('../format')
+const { output, relTimeIso, table, sharedWith } = require('../format')
+const { teamNames } = require('./teams')
 const { fail } = require('../errors')
 
 async function doRules (argv, { api }) {
   if (argv.uuid) {
-    return { mode: 'detail', rule: await api.getRule(argv.uuid) }
+    const [rule, names] = await Promise.all([api.getRule(argv.uuid), teamNames(api)])
+    return { mode: 'detail', rule, teamNames: names }
   }
   return { mode: 'list', result: await api.listRules() }
 }
@@ -26,8 +28,8 @@ function renderList ({ result }) {
   console.log(`\n${rules.length} shown, ${total} total.`)
 }
 
-function renderDetail ({ rule: r }) {
-  const line = (label, value) => { if (value !== undefined && value !== null && value !== '') console.log(`${label.padEnd(12)}${value}`) }
+function renderDetail ({ rule: r, teamNames }) {
+  const line = (label, value) => { if (value !== undefined && value !== null && value !== '') console.log(`${label.padEnd(13)}${value}`) }
   console.log(r.name || '(unnamed rule)')
   line('ID', r.id)
   if (r.scope) line('Scope', r.scope)
@@ -35,6 +37,7 @@ function renderDetail ({ rule: r }) {
   line('Updated', relTimeIso(r.updated_at))
   const projects = (r.projects || []).map((p) => p.projectName).filter(Boolean)
   if (projects.length) line('Used by', projects.join(', '))
+  line('Shared with', sharedWith(r, teamNames))
   if (r.content) console.log('\n' + String(r.content).trimEnd())
 }
 

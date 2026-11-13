@@ -1,0 +1,32 @@
+{
+  "id": "028eeb91-e849-4ebd-bc61-0e9083cd0ff8",
+  "companyId": "a5b48d76-f9a4-4c00-91cf-6b71905a87e7",
+  "name": "Beta Team",
+  "isDefault": false,
+  "ownerId": "d8e95055-0c45-4313-90d5-d630ff6c13c1",
+  "memberCount": 2,
+  "createdAt": 1786728910,
+  "updatedAt": 1786728910,
+  "members": [
+    {
+      "userId": "d8e95055-0c45-4313-90d5-d630ff6c13c1",
+      "teamId": "028eeb91-e849-4ebd-bc61-0e9083cd0ff8",
+      "companyId": "a5b48d76-f9a4-4c00-91cf-6b71905a87e7",
+      "email": "quin.lead@example.com",
+      "firstName": "Quin",
+      "lastName": "Lead",
+      "role": "SUPER_ADMIN",
+      "joinedAt": 1786728910
+    },
+    {
+      "userId": "c2605c19-0d9f-4f8b-b6cb-eacc0a162449",
+      "teamId": "028eeb91-e849-4ebd-bc61-0e9083cd0ff8",
+      "companyId": "a5b48d76-f9a4-4c00-91cf-6b71905a87e7",
+      "email": "uma.user@example.com",
+      "firstName": "Uma",
+      "lastName": "User",
+      "role": "SUPER_ADMIN",
+      "joinedAt": 1786729000
+    }
+  ]
+}

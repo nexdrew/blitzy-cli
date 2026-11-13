@@ -62,6 +62,23 @@ test('login token path without --refresh-token drops a refresh token from an ear
   expect(store.get('refreshToken')).toBeFalsy()
 })
 
+test('a failed --token login puts back the session that was stored before', async () => {
+  const before = { email: 'a@b.com', userId: 'user_1', workosToken: 'good-wtok', refreshToken: 'good-rtok', platformToken: 'ptok', platformTokenExp: 123 }
+  const { api, store } = setup({
+    'POST /auth': { status: 401, body: { error: 'Invalid credentials' } }
+  }, { backing: before })
+  await expect(
+    login.doLogin({ token: 'x', 'refresh-token': 'x' }, { api, store, io: { isTty: false } })
+  ).rejects.toThrow('Blitzy rejected the token. No stored login was changed.')
+  expect(store.all()).toEqual(before)
+})
+
+test('a failed --token login with nothing stored before leaves the store empty', async () => {
+  const { api, store } = setup({ 'POST /auth': { status: 401, body: { error: 'Invalid credentials' } } })
+  await expect(login.doLogin({ token: 'x' }, { api, store, io: { isTty: false } })).rejects.toThrow()
+  expect(store.all()).toEqual({})
+})
+
 test('login rejects --refresh-token without --token', async () => {
   const { api, store, client } = setup({})
   await expect(
@@ -283,6 +300,10 @@ test('projects list mode fans out and renders a table', async () => {
   expect(result.result.projects).toHaveLength(3)
   const out = await captureLog(() => projects.renderList(result))
   expect(out).toContain('NAME')
+  // the list shows the run status, not the constant project `status`
+  expect(out.split('\n')[0]).toMatch(/STAGE\s+RUN STATUS\s+DONE/)
+  expect(out).toContain(projectDetail.currentStatus.status)
+  expect(out).not.toContain('GITHUB_COMPLETED')
   expect(out).toContain('Proj 5093')
   expect(out).toContain('90.2%')
   expect(out).toContain('3 total')

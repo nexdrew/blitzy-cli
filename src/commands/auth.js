@@ -19,19 +19,24 @@ function doAuth (argv, { store, env = process.env, now = Date.now }) {
   const workosExpMs = workosToken ? jwtExpMs(workosToken) : null
   const platformExpMs = source === 'store' ? (store.get('platformTokenExp') || null) : null
 
-  // Authenticated = a WorkOS token that isn't visibly expired, OR an expired
+  // A WorkOS access token is a JWT with an `exp` claim. A value that cannot be
+  // decoded (for example a mistyped token) is not a usable login.
+  const tokenReadable = workosExpMs != null
+
+  // Authenticated = a readable WorkOS token that isn't expired, OR an expired
   // one with a refresh token present — commands refresh the session
   // automatically on their next API call. (A refresh token that the server
   // would reject can't be detected locally, so that case is optimistic.)
-  const expired = !!(workosExpMs && workosExpMs <= now())
+  const expired = tokenReadable && workosExpMs <= now()
   const refreshTokenPresent = !!(store && store.get('refreshToken'))
   const refreshExpected = expired && source === 'store' && refreshTokenPresent
-  const authenticated = !!workosToken && (!expired || refreshExpected)
+  const authenticated = tokenReadable && (!expired || refreshExpected)
 
   const iso = (ms) => (ms != null && isFinite(ms) ? new Date(ms).toISOString() : null)
   return {
     authenticated,
     source,
+    tokenReadable: workosToken ? tokenReadable : null,
     email: (store && store.get('email')) || null,
     workosExpiresAt: iso(workosExpMs),
     platformExpiresAt: iso(platformExpMs),
@@ -48,6 +53,9 @@ function renderAuth (s) {
   line('Login expires', s.workosExpiresAt)
   line('Token expires', s.platformExpiresAt)
   line('Refresh token', s.refreshTokenPresent ? 'present' : 'absent')
+  if (s.tokenReadable === false) {
+    console.log(`\nThe token from ${s.source === 'env' ? 'BLITZY_TOKEN' : 'the stored login'} is not a valid access token.`)
+  }
   if (s.refreshExpected) console.log('\nLogin expired; the session will refresh automatically on the next command.')
   if (!s.authenticated) console.log('\nRun `blitzy login` to authenticate.')
 }
