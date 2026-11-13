@@ -35,6 +35,7 @@ Commands:
   rules [uuid]     List reusable rules, or show one rule's full content by uuid
   envs [uuid]      List environments, or show one environment's setup by uuid
   teams [uuid]     List teams you belong to, or show one team's members by uuid
+  cves [uuid]      List branches with security findings, or show one branch's findings by id
   download <uuid>  Download generated project artifacts
   usage            Show subscription usage against quota
 
@@ -46,9 +47,18 @@ Project options (projects):
   --teams <ids>    Filter by comma-delimited team uuids and/or PERSONAL, ORGANIZATION
   --no-gh          Don't use the gh CLI to look up submodule PRs
 
+Security finding options (cves <id>):
+  --severity <list>      Filter by severity: critical, high, medium, low, info
+  --reachability <list>  Filter by reachability: internet, internal
+  --kev                  Only findings in the Known Exploited Vulnerabilities catalog
+  --search <text>        Search the finding ids and descriptions
+  --sort <expr>          Sort expression (default "severity desc")
+  --limit <n>            Findings per page (default 25, maximum 100)
+  --page <n>             Page number (default 1)
+
 Download options (download):
   --aap            Agent Action Plan (review before code-gen)
-  --guide          Project Guide (review after code-gen)
+  --guide          Project Guide (delivered with each pull request)
   --tech-spec      Tech spec (Markdown + PDF)
   --build-prompt   Build prompt
   --all            All available artifacts (the default)
@@ -155,7 +165,25 @@ team names, or `Private`. A team marked `(via project)` has access only because 
 its projects uses the rule or environment.
 
 In the project list, `STAGE` is the lifecycle stage of the project and `RUN STATUS` is the
-status of its current run (for example `IN_PROGRESS` or `DONE`).
+status of its current run (for example `IN_PROGRESS` or `DONE`). A `FLAGS` column appears
+when a project is `locked`, `demo`, `view-only`, or `disabled`.
+
+`blitzy projects <uuid>` shows one project in blocks:
+
+- **Summary:** the stage, the run status, and a line for each flag that is set.
+- **Metering:** the lines, files, and hours for the project.
+- **Tech spec:** the version and the state of the latest tech spec.
+- **Progress:** shown only while a run is in progress. A tech spec run shows the files and
+  lines that Blitzy has processed. A code generation shows its percent and its stages.
+- **Source control:** the provider name (for example `GitHub` or `Azure DevOps`), the
+  repository, the branch, and the PRs. Each PR line shows the lines and files of its run.
+- **Environments:** the environments attached to the project, in priority order.
+- **Rules:** the rules attached to the project.
+- **Shared with:** `Organization`, team names, or `Private`.
+
+If a block has no data, the CLI does not print it.
+
+If `--teams` gives no projects, the CLI names each team id that is not one of your teams.
 
 Filter the project list by team — comma-delimited team uuids and/or the synthetic
 scopes `PERSONAL` (your unshared projects) and `ORGANIZATION` (company-shared):
@@ -166,17 +194,51 @@ blitzy projects --teams d1d577c3-15c8-497c-80ae-f9179f9985a7     # one team's pr
 blitzy projects --teams personal,organization                    # scopes are case-insensitive
 ```
 
+`blitzy usage` shows each quota with the amount that is left. It shows reserved lines
+and overage only when they are more than zero. Blitzy does not document the currency of
+the overage numbers, so the CLI prints them as the API gives them.
+
 Add `--json` to any command to get the raw API response for scripting:
 
 ```sh
 blitzy projects --json | jq '.projects[] | {name, stage: .currentStatus.stage, run: .currentStatus.status}'
 ```
 
+### Security findings
+
+Blitzy scans your repository branches for vulnerabilities. Blitzy calls this feature
+Proactive Insights.
+
+```sh
+blitzy cves                                            # branches that have a scan
+blitzy cves eeeeeeee-0000-4000-8000-000000000001       # findings of one branch
+blitzy cves <id> --severity critical,high --reachability internet
+blitzy cves <id> --kev                                 # known exploited vulnerabilities only
+blitzy cves <id> --search sql --limit 100 --page 2
+```
+
+Without an argument, `cves` lists each scanned branch with its number of findings. The
+`BLITZY` column is the number of findings that Blitzy discovered itself, and the `KEV`
+column is the number in the Known Exploited Vulnerabilities catalog. Use the `ID` of a
+branch to list its findings.
+
+Each finding has a severity, an id, a reachability, and a status:
+
+- An id that starts with `BLITZY-` is a finding that Blitzy discovered. Other ids (for
+  example `CVE-` or `GHSA-`) are publicly known.
+- `INTERNET` means that the finding is reachable from an external path. `INTERNAL` means
+  that it is reachable only inside your network.
+- A finding with no package is in your own code.
+
+The table shows a short title. Use `--json` for the full data of each finding, which
+includes the summary and the severity rationale.
+
 ### Download artifacts
 
 Blitzy generates documents for a project — the tech spec, the build prompt, the Agent
-Action Plan (reviewed before code-gen), and the Project Guide (produced by code-gen). These
-are separate from the code committed in PRs. Download them for offline review:
+Action Plan (reviewed before code-gen), and the Project Guide (the statement of work that
+Blitzy delivers with each pull request). These are separate from the code committed in
+PRs. Download them for offline review:
 
 ```sh
 blitzy download <uuid> --aap      # just the Agent Action Plan
@@ -196,8 +258,9 @@ Downloaded to ./aloradl-native-port-52dbb20e:
 By default files go to `./<project-slug>-<short-id>/` under the current directory; use
 `--out <dir>` to choose your own. Artifacts that don't exist yet for the project (e.g. the
 Project Guide before code-gen has run) are reported as skipped, and the rest still download.
-If Blitzy denies access to the project (HTTP 403), the command stops with an error. Blitzy
-gives this answer for a project that you cannot access and for a uuid that does not exist.
+If Blitzy denies access to the project (HTTP 403), the command stops with the message
+`Project not found or not accessible` and exit code 3. Blitzy gives this answer for a
+project that you cannot access and for a uuid that does not exist.
 
 For scripting, `--stdout` streams a single artifact's raw bytes to stdout (pick exactly
 one artifact flag; with `--tech-spec` it picks the Markdown flavor), and `--probe` reports
@@ -210,6 +273,9 @@ blitzy download <uuid> --probe --json   # {"artifacts":[{"key":"aap","available"
 
 ### Submodule PRs (optional gh integration)
 
+This integration is for projects on GitHub only. For a project on a different provider,
+the CLI does not call `gh`.
+
 A Blitzy project's parent PR often opens follow-up PRs in submodule repos, recorded
 only in the parent PR's GitHub description (not in Blitzy's API). If the
 [`gh`](https://cli.github.com) CLI is installed and authenticated, `blitzy projects <uuid>`
@@ -221,7 +287,7 @@ GitHub
   Repo             LivTech-Alora/blitzy-pilot-parent
   Branch           main
   PRs
-    #19  (PENDING, 5 days ago)  https://github.com/LivTech-Alora/blitzy-pilot-parent/pull/19
+    #19  (PENDING, 5 days ago, 1,627 lines, 22 files)  https://github.com/LivTech-Alora/blitzy-pilot-parent/pull/19
       submodule LivTech-Alora/alora-plus#265 (OPEN)  https://github.com/LivTech-Alora/alora-plus/pull/265
 ```
 
@@ -231,7 +297,7 @@ recent PRs; when a project has more, the output says so.
 This is best-effort: if `gh` is missing, unauthenticated, or a lookup fails, the rest of
 the detail still renders (with a note when `gh` is installed but not logged in). Pass
 `--no-gh` to skip the gh calls entirely. `--json` detail output includes the raw `runs`
-payload plus a `gh` block (`{enabled, available, authenticated, used, truncatedAt}`) so
+payload, the `environments`, `rules`, `techSpec`, and `progress` of the project, plus a `gh` block (`{enabled, available, authenticated, used, truncatedAt}`) so
 scripts can tell "no submodule PRs" apart from "gh couldn't look".
 
 ## Scripting and exit codes

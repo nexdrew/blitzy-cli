@@ -7,7 +7,13 @@
     "repoId": "1257596781",
     "repoName": "blitzy-pilot-parent",
     "svcType": "GITHUB",
-    "type": "SOURCE"
+    "type": "SOURCE",
+    "azureProjectId": null,
+    "azureProjectName": null,
+    "displayPath": null,
+    "hostname": null,
+    "internalInstallationId": "aaaaaaaa-0000-4000-8000-000000000004",
+    "needsScan": false
   },
   {
     "branchName": "",
@@ -17,6 +23,12 @@
     "repoId": "1257596781",
     "repoName": "blitzy-pilot-parent",
     "svcType": "GITHUB",
-    "type": "TARGET"
+    "type": "TARGET",
+    "azureProjectId": null,
+    "azureProjectName": null,
+    "displayPath": null,
+    "hostname": null,
+    "internalInstallationId": "aaaaaaaa-0000-4000-8000-000000000004",
+    "needsScan": false
   }
 ]

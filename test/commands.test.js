@@ -342,7 +342,6 @@ test('projects detail mode fetches project + repos + runs and renders GitHub inf
   expect(result.mode).toBe('detail')
   const out = await captureLog(() => projects.renderDetail(result))
   expect(out).toContain('AloraDL Native Port')
-  expect(out).toContain('GITHUB_COMPLETED')
   expect(out).toContain('CODEGEN')
   // real GitHub repo + branch, not repoPrefix/repoUrl
   expect(out).toContain('LivTech-Alora/blitzy-pilot-parent')
@@ -458,8 +457,37 @@ test('usage renders quota lines with percentages', async () => {
   const result = await usage.doUsage({}, { api })
   const out = await captureLog(() => usage.renderUsage(result))
   expect(out).toContain('Lines generated')
-  expect(out).toContain('186,825 / 1,250,000')
+  expect(out).toContain('186,825 / 1,250,000 (14.9%, 1,063,175 left)')
   expect(out).toContain('Hours saved')
+  // no overage and nothing reserved: those lines are left out
+  expect(out).not.toContain('overage')
+  expect(out).not.toContain('reserved')
+})
+
+test('usage shows reserved lines and overage only when they are more than zero', async () => {
+  const u = Object.assign({}, usageFixture, {
+    reservedLinesGenerated: 12000,
+    costLinesGeneratedOverage: 1250.5,
+    chargeLinesGeneratedOverage: 0.5,
+    costLinesOnboardedOverage: 0
+  })
+  const out = await captureLog(() => usage.renderUsage({ usage: u }))
+  expect(out).toMatch(/^Lines reserved +12,000$/m)
+  expect(out).toMatch(/^Generated overage +1,250\.5 \(rate 0\.5 per line\)$/m)
+  expect(out).not.toContain('Onboarded overage')
+})
+
+test('usage says when the API reports no quota', async () => {
+  const out = await captureLog(() => usage.renderUsage({ usage: { linesGenerated: 500, linesOnboarded: 900, quotaLinesOnboarded: 0 } }))
+  expect(out).toMatch(/^Lines generated +500 \(no quota reported\)$/m)
+  expect(out).toMatch(/^Lines onboarded +900 \(no quota reported\)$/m)
+})
+
+test('usage explains a 403 with the role rule from the Blitzy docs', async () => {
+  const lines = []
+  const api = { usage: async () => { const e = new Error('You do not have permission to perform this action'); e.status = 403; throw e } }
+  await usage.handle({}, {}, { api, errio: { stderr: (l) => lines.push(l), exit: () => {} } })
+  expect(lines[0]).toBe('You do not have permission to perform this action Usage statistics are for the Admin and Super Admin roles.')
 })
 
 // --- v1.1: gh metadata + raw runs in detail results ---

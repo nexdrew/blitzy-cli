@@ -217,8 +217,13 @@ test('download aborts on HTTP 403 (no access to the project, or a CSRF failure)'
     getProject: async () => ({ name: 'P' }),
     downloadDocument: async () => { const e = new Error('You do not have permission to perform this action'); e.status = 403; throw e }
   }
-  await expect(download.doDownload({ uuid: 'x', probe: true }, { api, io: fakeIo() })).rejects.toThrow(/do not have permission/)
-  await expect(download.doDownload({ uuid: 'x', aap: true }, { api, io: fakeIo() })).rejects.toThrow(/do not have permission/)
+  // the permission answer is also what the API gives for a uuid that does not exist
+  await expect(download.doDownload({ uuid: 'x', probe: true }, { api, io: fakeIo() })).rejects.toThrow('Project not found or not accessible: x')
+  const err = await download.doDownload({ uuid: 'x', aap: true }, { api, io: fakeIo() }).catch((e) => e)
+  expect(err.kind).toBe('not_found')
+
+  const csrf = { getProject: async () => ({ name: 'P' }), downloadDocument: async () => { const e = new Error('CSRF token invalid.'); e.status = 403; throw e } }
+  await expect(download.doDownload({ uuid: 'x', probe: true }, { api: csrf, io: fakeIo() })).rejects.toThrow('CSRF token invalid.')
 })
 
 test('an unavailable artifact does not repeat the HTTP status in its reason', async () => {

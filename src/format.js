@@ -54,6 +54,11 @@ function pct (n) {
   return typeof n === 'number' ? `${n}%` : '-'
 }
 
+// A count with thousands separators (283,799), or '-' when it is not a number.
+function num (n) {
+  return typeof n === 'number' ? n.toLocaleString('en-US') : '-'
+}
+
 // Render an array of row objects as a padded, left-aligned text table.
 function table (columns, rows) {
   const widths = columns.map((c) => c.header.length)
@@ -98,4 +103,4 @@ function sharedWith (item, teamNames = new Map()) {
   return out.length ? out.join(', ') : 'Private'
 }
 
-module.exports = { output, relTime, relTimeIso, pct, table, toMs, sharedWith }
+module.exports = { output, relTime, relTimeIso, pct, num, table, toMs, sharedWith }

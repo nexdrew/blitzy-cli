@@ -1,0 +1,19 @@
+{
+  "error_code": null,
+  "error_message": null,
+  "file_extensions": {
+    "cs": 1204
+  },
+  "files_processed": 1204,
+  "folders_summarized": 88,
+  "lines_processed": 310455,
+  "phase": "TECH_SPEC_WRITING",
+  "progress_stage": "SECURITY_SCANNING",
+  "retry_path": null,
+  "retryable": false,
+  "shard_count": 4,
+  "status": "IN_PROGRESS",
+  "total_files": 5310,
+  "total_folders": 402,
+  "total_lines_onboarded": 1250000
+}

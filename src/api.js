@@ -246,8 +246,10 @@ class BlitzyApi {
     return this.authed('GET', `/projects/${id}`)
   }
 
-  // GitHub repos linked to a project (SOURCE and TARGET). Note the singular
-  // `/project/` path, unlike the plural `/projects/:id` detail endpoint.
+  // Repos linked to a project (SOURCE and TARGET), each with a `svcType` that
+  // names the source-control provider. The path says `github` for every
+  // provider. Note the singular `/project/` path, unlike the plural
+  // `/projects/:id` detail endpoint.
   projectRepos (id) {
     return this.authed('GET', `/project/${id}/github/repos`)
   }
@@ -257,15 +259,99 @@ class BlitzyApi {
     return this.authed('GET', `/project/${id}/runs/metering`)
   }
 
-  // Fetch a project's detail plus its GitHub repos and runs (for PR info),
-  // tolerating a failure of either auxiliary call.
+  // Environments attached to a project -> { environments: [{ id, name, position,
+  // revision }] }. `position` is the priority; 1 is the highest.
+  projectEnvironments (id) {
+    return this.authed('GET', `/project/${id}/environments`)
+  }
+
+  // Rules attached to a project -> { rules: [{ id, name, scope }], totalCount }.
+  // Note the plural `/projects/` path, unlike the environments call.
+  projectRules (id) {
+    return this.authed('GET', `/projects/${id}/rules`)
+  }
+
+  // The latest tech spec of a project -> { id, version, status, jobType,
+  // pdfReportStatus, approvedAt, createdAt, updatedAt, ... }.
+  techSpecLatest (id) {
+    return this.authed('GET', `/project/${id}/tech-spec/latest`)
+  }
+
+  // Progress of a tech spec run (codebase ingestion) -> { status, phase,
+  // progress_stage, files_processed, total_files, lines_processed,
+  // error_message, retryable, ... }.
+  ingestionProgress (id, techSpecId) {
+    return this.authed('GET', `/project/${id}/tech-spec/${techSpecId}/ingestion-progress`)
+  }
+
+  // The code generation of a tech spec -> { id, status, reason, failure_reason,
+  // project_run_id, ... }. 404 when the tech spec has no code generation.
+  codeGen (id, techSpecId) {
+    return this.authed('GET', `/project/${id}/tech-spec/${techSpecId}/code-gen`)
+  }
+
+  // Progress of a code generation -> { stages: { SCOPING_CHANGES,
+  // MANAGING_DEPENDENCIES, CODE_GENERATION, QA }, execution_percent_complete,
+  // estimated_time_remaining, project_run_type, error_message, retryable, ... }.
+  codeGenProgress (id, codeGenId) {
+    return this.authed('GET', `/project/${id}/code-gen/${codeGenId}/progress`)
+  }
+
+  // Progress of the current run, for a run that is not DONE. Returns
+  // { stage: 'TECH_SPEC', ingestion } or { stage: 'CODEGEN', codeGen, codeGenProgress },
+  // or null when the run is DONE or Blitzy gives no progress for it.
+  async runProgress (id, project, techSpec) {
+    const cs = (project && project.currentStatus) || {}
+    if (!techSpec || !techSpec.id || !cs.status || cs.status === 'DONE') return null
+    try {
+      if (cs.stage === 'TECH_SPEC') {
+        return { stage: 'TECH_SPEC', ingestion: await this.ingestionProgress(id, techSpec.id) }
+      }
+      if (cs.stage === 'CODEGEN') {
+        const codeGen = await this.codeGen(id, techSpec.id)
+        const codeGenProgress = codeGen && codeGen.id ? await this.codeGenProgress(id, codeGen.id) : null
+        return { stage: 'CODEGEN', codeGen, codeGenProgress }
+      }
+    } catch { /* progress is enrichment only */ }
+    return null
+  }
+
+  // Fetch a project's detail plus its repos, runs (for PR info), attached
+  // environments and rules, latest tech spec, and run progress. Only the detail
+  // call is required; a failure of an auxiliary call leaves that part null.
   async getProjectFull (id) {
-    const [project, repos, runs] = await Promise.all([
+    const [project, repos, runs, environments, rules, techSpec] = await Promise.all([
       this.getProject(id),
       this.projectRepos(id).catch(() => null),
-      this.projectRuns(id).catch(() => null)
+      this.projectRuns(id).catch(() => null),
+      this.projectEnvironments(id).catch(() => null),
+      this.projectRules(id).catch(() => null),
+      this.techSpecLatest(id).catch(() => null)
     ])
-    return { project, repos, runs }
+    const progress = await this.runProgress(id, project, techSpec)
+    return { project, repos, runs, environments, rules, techSpec, progress }
+  }
+
+  // --- Proactive Insights (CVE findings) ---
+
+  // Repositories and branches that have scans -> { repos: [{ repo_id, org_name,
+  // repo_name, scm_type, blitzy_count, kev_count, pinned_count, branches: [{
+  // branch_pattern_id, branch_name, commit_sha, finding_count, blitzy_count,
+  // kev_count, is_pinned, is_scanning, last_scanned_at }] }], recent_branches }.
+  listCveBranches () {
+    return this.authed('GET', '/cve/branches')
+  }
+
+  // Findings for one branch -> { findings: [{ id, cve_id, title, summary,
+  // severity, reachability, source, status, is_kev, packages, confirmed_by, ... }],
+  // total_count, page, page_size, commit_sha, last_scanned_at }.
+  // `severity` and `reachability` are comma-delimited and not case-sensitive.
+  // The server limits page_size to 100, rejects an unknown sort field with 400,
+  // and answers 404 for an unknown branch.
+  listCveFindings (branchPatternId, { severity, reachability, isKev, search, sort = 'severity desc', page = 1, pageSize = 25 } = {}) {
+    return this.authed('GET', '/cve-findings', {
+      query: { branch_pattern_id: branchPatternId, search, severity, reachability, is_kev: isKev, sort, page, page_size: pageSize }
+    })
   }
 
   // The platform requires an x-csrf-token header on every POST and PUT that

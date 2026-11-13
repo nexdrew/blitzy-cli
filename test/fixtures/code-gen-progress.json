@@ -1,0 +1,19 @@
+{
+  "code_generation_progress": null,
+  "error_code": null,
+  "error_message": null,
+  "estimated_time_remaining": null,
+  "execution_percent_complete": 42.5,
+  "managing_dependencies_progress": null,
+  "project_run_type": "REFACTOR_CODE",
+  "qa_progress": null,
+  "retry_path": null,
+  "retryable": false,
+  "scoping_changes_progress": null,
+  "stages": {
+    "SCOPING_CHANGES": "DONE",
+    "MANAGING_DEPENDENCIES": "DONE",
+    "CODE_GENERATION": "IN_PROGRESS",
+    "QA": "PENDING"
+  }
+}

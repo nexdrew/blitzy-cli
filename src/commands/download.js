@@ -65,7 +65,11 @@ async function fetchArtifact (api, id, key) {
     // it for a project the user cannot access (or that does not exist) and for
     // CSRF failures, so no artifact can succeed. Any other HTTP error just means
     // "this document isn't available".
-    if (err.kind === 'auth' || err.kind === 'network' || err.status === 401 || err.status === 403) throw err
+    if (err.status === 403 && /permission/i.test(err.message)) {
+      err.message = `Project not found or not accessible: ${id}`
+      err.kind = 'not_found'
+    }
+    if (err.kind === 'auth' || err.kind === 'network' || err.kind === 'not_found' || err.status === 401 || err.status === 403) throw err
     const status = err.status ? `HTTP ${err.status}` : ''
     const reason = status && err.message !== status ? `${err.message} (${status})` : err.message
     return { key, ok: false, reason }
@@ -192,7 +196,7 @@ module.exports = {
   setup: (sywac) => {
     sywac
       .boolean('--aap', { desc: 'Agent Action Plan (review before code-gen)' })
-      .boolean('--guide', { desc: 'Project Guide (review after code-gen)' })
+      .boolean('--guide', { desc: 'Project Guide (delivered with each pull request)' })
       .boolean('--tech-spec', { desc: 'Tech spec (Markdown + PDF)' })
       .boolean('--build-prompt', { desc: 'Build prompt' })
       .boolean('--all', { desc: 'All available artifacts (the default when no artifact flag is given)' })
